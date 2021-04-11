@@ -116,9 +116,7 @@ if __name__ == '__main__':
                 statesToReplace[key] = equivalentStates[0]
                 break
 
-    transitionFunctionsOut = {statesToReplace[i]: {j: statesToReplace[transitionFunctions[i][j]]
-                                                   for j in transitionFunctions[i].keys()}
-                              for i in transitionFunctions.keys()}
+    transitionFunctionsOut = {statesToReplace[i]: {j: statesToReplace[transitionFunctions[i][j]] for j in transitionFunctions[i].keys()} for i in transitionFunctions.keys()}
 
     allowedStatesOut = [i for i in transitionFunctionsOut.keys()]
     allowedStatesOut.sort()
