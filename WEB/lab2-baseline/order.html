@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Flower power!</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="shortcut icon" type="image/png" href="images/flower-icon.png" />
+    <link rel="stylesheet" type="text/css" href="vendor/normalize.css">
+    <link rel="stylesheet" type="text/css" href="styles/main.css">
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <script src="./scripts/main.js"></script>
+</head>
+
+
+<body class="content body-header-fixed">
+    <header class="header header-fixed primary-color-bg">
+        <nav class="navigation container">
+            <div class="menu">
+                <a href="index.html" class="link menu-item">Home</a>
+                <a href="order.html" class="link menu-item link-active">Order</a>
+                <a href="index.html" class="link">
+                    <img class="scaled-image scaled-image-fixed" src="images/logo.svg" alt="Company logo">
+                </a>
+                <a href="#" class="link menu-item">Contact us</a>
+                <a href="#" class="link menu-item cart-menu">
+                    <img src="images/cart-icon.svg" alt="Cart icon">
+                    <div class="cart-menu-status">
+                        <div id="cart-items">0</div>
+                        <div>items</div>
+                    </div>
+                </a>
+            </div>
+        </nav>
+    </header>
+    <main class="main">
+
+    </main>
+    <footer class="footer">
+        <div class="container">
+            <div class="menu menu-distributed">
+                <div class="infobox infobox-marginless infobox-copyright">
+                    <h4 class="infobox-title infobox-title-secondary-color main-color-emphasized">
+                        Copy this as much as you like
+                    </h4>
+                </div>
+                <div class="infobox infobox-marginless infobox-flower">
+                    <h4 class="infobox-title infobox-title-secondary-color main-color-emphasized">
+                        Flower power
+                    </h4>
+                </div>
+            </div>
+        </div>
+    </footer>
+    <template id="category-template">
+        <section class="section secondary-color-bg">
+            <div class="centered-container">
+                <h1 class="decorated-title font-secondary main-color">
+                    <span class="main-color-emphasized">Category name</span>
+                    Inventory</h1>
+                <div class="separator"></div>
+            </div>
+            <div class="gallery">
+            </div>
+        </section>
+    </template>
+    <template id="product-template">
+        <div class="photo-box" id = "">
+            <img class="photo-box-image" src=""></img>
+            <div class="photo-box-title font-secondary main-color-emphasized">Product name</div>
+            <div class="cart-btn" onclick=""></div>
+        </div>
+    </template>
+    <script>
+        let getData = async function () {
+            let response = await fetch("https://web1lab2.azurewebsites.net/categories");
+            let data = await response.json();
+            addCategories(data);
+        }
+
+        function updateCart(n){
+            document.getElementById("cart-items").textContent = n;
+        }
+
+        function foo(a){
+            let tmpList = window.localStorage.lista.split(",");
+            tmpList.push(a);
+            window.localStorage.lista = tmpList;
+            window.localStorage.broj = parseInt(window.localStorage.broj) + 1;
+            updateCart(window.localStorage.getItem("broj"));
+        }
+
+        let addCategories = async function (categories) {
+            let main = document.querySelector('main');
+            let categoryTemplate = document.querySelector('#category-template');
+
+            for (let index = 0; index < categories.length; index++) {
+                let category = categoryTemplate.content.cloneNode(true);
+                let categoryTitleElement = category.querySelector('.decorated-title > span');
+                categoryTitleElement.textContent = categories[index].name;
+
+                let gallery = category.querySelector(".gallery");
+                let productTemplate = document.querySelector("#product-template");
+
+                let response = await fetch("https://web1lab2.azurewebsites.net/products?categoryId=" + categories[index].id);
+                let data = await response.json();
+                for(let index2 = 0; index2 < data.length; index2++){
+                    let product = productTemplate.content.cloneNode(true);
+                    product.querySelector(".photo-box").id = data[index2].id;
+                    product.querySelector(".photo-box-image").src = data[index2].imageUrl.substring(1);
+                    product.querySelector(".photo-box-title").textContent = data[index2].name;
+                    product.querySelector(".cart-btn").addEventListener("click", function(id){foo(data[index2].id);});
+
+                    gallery.appendChild(product)
+                }
+                main.appendChild(category);
+            }
+        }
+        getData();
+        updateCart(window.localStorage.getItem("broj"));
+		
+    </script>
+</body>
+
+</html>
