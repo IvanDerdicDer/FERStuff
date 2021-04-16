@@ -64,7 +64,7 @@
         </section>
     </template>
     <template id="product-template">
-        <div class="photo-box" id = "">
+        <div class="photo-box" data-id = "">
             <img class="photo-box-image" src=""></img>
             <div class="photo-box-title font-secondary main-color-emphasized">Product name</div>
             <div class="cart-btn" onclick=""></div>
@@ -83,7 +83,11 @@
 
         function foo(a){
             let tmpList = window.localStorage.lista.split(",");
-            tmpList.push(a);
+            if(tmpList[0] === ""){
+                tmpList[0] = a;
+            }else{
+                tmpList.push(a)
+            }
             window.localStorage.lista = tmpList;
             window.localStorage.broj = parseInt(window.localStorage.broj) + 1;
             updateCart(window.localStorage.getItem("broj"));
@@ -105,11 +109,11 @@
                 let data = await response.json();
                 for(let index2 = 0; index2 < data.length; index2++){
                     let product = productTemplate.content.cloneNode(true);
-                    product.querySelector(".photo-box").id = data[index2].id;
-                    product.querySelector(".photo-box-image").src = data[index2].imageUrl.substring(1);
+                    product.querySelector(".photo-box").setAttribute("data-id", data[index2].id);
+                    product.querySelector(".photo-box-image").src = data[index2].imageUrl;
                     product.querySelector(".photo-box-title").textContent = data[index2].name;
                     product.querySelector(".cart-btn").addEventListener("click", function(id){foo(data[index2].id);});
-
+                    
                     gallery.appendChild(product)
                 }
                 main.appendChild(category);
