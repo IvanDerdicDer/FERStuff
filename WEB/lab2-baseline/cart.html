@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Flower power!</title>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="shortcut icon" type="image/png" href="images/flower-icon.png" />
+    <link rel="stylesheet" type="text/css" href="vendor/normalize.css">
+    <link rel="stylesheet" type="text/css" href="styles/main.css">
+
+</head>
+
+<body class="content">
+    <header class="header header-fixed header-search primary-color-bg">
+        <nav class="navigation container">
+            <div class="menu">
+                <a href="index.html" class="link menu-item">Home</a>
+                <a href="order.html" class="link menu-item">Order</a>
+                <a href="index.html" class="link">
+                    <img class="scaled-image scaled-image-fixed" src="images/logo.svg" alt="Company logo">
+                </a>
+                <a href="#" class="link menu-item">Contact us</a>
+                <a href="#" class="link menu-item cart-menu-active link-active">
+                    <img src="images/cart-icon.svg" alt="Cart icon">
+                    <div class="cart-menu-status">
+                        <div id="cart-items">0</div>
+                        <div>items</div>
+                    </div>
+                </a>
+            </div>
+        </nav>
+    </header>
+
+    <main class="main">
+        <section class="section secondary-color-bg">
+            <div class="centered-container">
+                <h1 class="decorated-title font-secondary main-color"><span class="main-color-emphasized">Shopping
+                        cart</span> items</h1>
+                <div class="separator"></div>
+                Filter products<br></br>
+                <input id = "forFunction" type="text" class="cart-filter-text", value=""></input>
+                <button class="cart-filter-apply" onclick="onClick()">Apply</button>
+                <button class="cart-filter-clear" onclick="clearInput()">Clear</button>
+                <div class="separator"></div>
+                <div style="width: 16%; margin:auto;" id = "append-into"></div>
+                
+            </div>
+            <template id="cart-template-header">
+                <div class="cart-header">
+                    <div class="cart-header-title">Product</div>
+                    <div class="cart-header-title">Price</div>
+                    <div class="cart-header-title">Quantity</div>
+                </div>
+            </template>
+            <template id="cart-template-item">
+                <div class="cart-item">
+                    <div class="cart-item-title">Tulips</div>
+                    <div class="cart-item-price">15 kn</div>
+                    <input type="number" class="cart-item-quantity"></input>
+                </div>
+            </template>
+        </section>
+    </main>
+    <footer class="footer">
+        <div class="container">
+            <div class="menu menu-distributed">
+                <div class="infobox infobox-marginless infobox-copyright">
+                    <h4 class="infobox-title infobox-title-secondary-color main-color-emphasized">
+                        Copy this as much as you like
+                    </h4>
+                </div>
+                <div class="infobox infobox-marginless infobox-flower">
+                    <h4 class="infobox-title infobox-title-secondary-color main-color-emphasized">
+                        Flower power
+                    </h4>
+                </div>
+            </div>
+        </div>
+    </footer>
+</body>
+<script>
+    let onStartup = async function(){
+        let appendInto = document.querySelector("#append-into");
+        let idList = localStorage.lista.split(",");
+        let passedDict = [];
+        let wasAppended = [];
+        let toAppend = document.querySelector("#cart-template-item")
+        if(idList[0] != ""){
+            appendInto.appendChild(document.querySelector("#cart-template-header").content.cloneNode(true));
+            for(let id = 0; id < idList.length; id++){
+                if(passedDict[idList[id]] == null){
+                    passedDict[idList[id]] = 1;
+                }else{
+                    passedDict[idList[id]] = Number(passedDict[idList[id]]) + 1;
+                }
+            }
+            for(let id = 0; id < idList.length; id++){
+                let itemToAppend = toAppend.content.cloneNode(true);
+                let response = await fetch("https://web1lab2.azurewebsites.net/products/" + idList[id]);
+                let data = await response.json();
+                if(!wasAppended[idList[id]]){
+                    wasAppended[idList[id]] = 1;
+                    itemToAppend.querySelector(".cart-item-title").textContent = data.name;
+                    itemToAppend.querySelector(".cart-item-price").textContent = data.price + " kn";
+                    itemToAppend.querySelector(".cart-item-quantity").value = passedDict[idList[id]];
+                    itemToAppend.querySelector(".cart-item-quantity").id = idList[id];
+                    appendInto.appendChild(itemToAppend);
+                }
+            }
+        }
+    }
+
+    let onClick = async function(){
+        let appendInto = document.querySelector("#append-into");
+        appendInto.innerHTML = "";
+        let idList = localStorage.lista.split(",");
+        let value = document.getElementById("forFunction").value;
+        let passedDict = [];
+        let wasAppended = [];
+        let toAppend = document.querySelector("#cart-template-item")
+        if(idList[0] != ""){
+            
+            appendInto.appendChild(document.querySelector("#cart-template-header").content.cloneNode(true));
+            for(let id = 0; id < idList.length; id++){
+                if(passedDict[idList[id]] == null){
+                    passedDict[idList[id]] = 1;
+                }else{
+                    passedDict[idList[id]] = Number(passedDict[idList[id]]) + 1;
+                }
+            }
+            for(let id = 0; id < idList.length; id++){
+                let itemToAppend = toAppend.content.cloneNode(true);
+                let response = await fetch("https://web1lab2.azurewebsites.net/products/" + idList[id]);
+                let data = await response.json();
+                if(data.name.toLowerCase().includes(value.toLowerCase()) || String(data.price).includes(value) || passedDict[idList[id]] == Number(value)){
+                    if(!wasAppended[idList[id]]){
+                        wasAppended[idList[id]] = 1;
+                        itemToAppend.querySelector(".cart-item-title").textContent = data.name;
+                        itemToAppend.querySelector(".cart-item-price").textContent = data.price + " kn";
+                        itemToAppend.querySelector(".cart-item-quantity").value = passedDict[idList[id]];
+                        itemToAppend.querySelector(".cart-item-quantity").id = idList[id];
+                        appendInto.appendChild(itemToAppend);
+                    }else{
+                        document.getElementById(idList[id]).value = passedDict[idList[id]]
+                    }
+                }
+                
+            }
+            
+        }
+    }
+
+    function clearInput(){
+        document.getElementById("forFunction").value = "";
+        onClick();
+    }
+
+    function updateCart(n){
+        document.getElementById("cart-items").textContent = n;
+    }
+    updateCart(window.localStorage.broj);
+    onStartup();
+</script>
+
+</html>
