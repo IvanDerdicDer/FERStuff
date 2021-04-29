@@ -74,7 +74,7 @@ for inputList in inputLists:
             if i != "$":
                 stack.append(i)
         currentState = transitionFunctions[key][0]
-        print(f"{currentState}#{''.join(reversed(stack)) if stack else '&'}|", end="")
+        print(f"{currentState}#{''.join(reversed(stack)) if stack else '$'}|", end="")
         key = tuple([currentState, "$", stack.pop() if stack else "$"])
     else:
         stack.append(key[2])
