@@ -36,21 +36,21 @@ try:
 except:
     pass
 
-hasFailed = False
-
 for inputList in inputLists:
     print(f"{startingState}#{startingStackState}|", end="")
     stack = [startingStackState]
     currentState = startingState
+    hasFailed = False
 
     for symbol in inputList:
         key = tuple([currentState, "$", stack.pop() if stack else "$"])
         while key in transitionFunctions.keys():
             # stack.append(transitionFunctions[key][1])
             for i in reversed(transitionFunctions[key][1]):
-                stack.append(i)
+                if i != "$":
+                    stack.append(i)
             currentState = transitionFunctions[key][0]
-            print(f"{currentState}#{''.join(reversed(stack)) if stack else '&'}|", end="")
+            print(f"{currentState}#{''.join(reversed(stack)) if stack else '$'}|", end="")
             key = tuple([currentState, "$", stack.pop() if stack else "$"])
         else:
             stack.append(key[2])
@@ -62,20 +62,22 @@ for inputList in inputLists:
             hasFailed = True
             break
         for i in reversed(transitionFunctions[key][1]):
-            stack.append(i)
+            if i != "$":
+                stack.append(i)
+        currentState = transitionFunctions[key][0]
+        print(f"{currentState}#{''.join(reversed(stack)) if stack else '$'}|", end="")
+
+    key = tuple([currentState, "$", stack.pop() if stack else "$"])
+    while key in transitionFunctions.keys() and currentState not in finalStates:
+        # stack.append(transitionFunctions[key][1])
+        for i in reversed(transitionFunctions[key][1]):
+            if i != "$":
+                stack.append(i)
         currentState = transitionFunctions[key][0]
         print(f"{currentState}#{''.join(reversed(stack)) if stack else '&'}|", end="")
-
         key = tuple([currentState, "$", stack.pop() if stack else "$"])
-        while key in transitionFunctions.keys():
-            # stack.append(transitionFunctions[key][1])
-            for i in reversed(transitionFunctions[key][1]):
-                stack.append(i)
-            currentState = transitionFunctions[key][0]
-            print(f"{currentState}#{''.join(reversed(stack)) if stack else '&'}|", end="")
-            key = tuple([currentState, "$", stack.pop() if stack else "$"])
-        else:
-            stack.append(key[2])
+    else:
+        stack.append(key[2])
 
     if not hasFailed:
         if currentState in finalStates:
