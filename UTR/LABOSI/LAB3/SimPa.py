@@ -20,10 +20,7 @@ startingState:str = input()
 #Početno stanje stoga - "K"
 startingStackState:str = input()
 
-stack = [startingStackState]
-
-#s1,a->s1,s2,...
-#Funkcije prijelaza - {s1: {a: s1,s2,...}}
+#{["s1", "a", "K"]: ["s2", "NK"]}
 transitionFunctions = {}
 try:
     tmpFunc = input()
@@ -33,8 +30,57 @@ try:
 
         key = tmpFunc.split('->')[0]
         data = tmpFunc.split('->')[1]
-        transitionFunctions[key.split(',')] = data.split(',')
+        transitionFunctions[tuple(key.split(","))] = data.split(",")
 
         tmpFunc = input()
 except:
     pass
+
+hasFailed = False
+
+for inputList in inputLists:
+    print(f"{startingState}#{startingStackState}|", end="")
+    stack = [startingStackState]
+    currentState = startingState
+
+    for symbol in inputList:
+        key = tuple([currentState, "$", stack.pop() if stack else "$"])
+        while key in transitionFunctions.keys():
+            # stack.append(transitionFunctions[key][1])
+            for i in reversed(transitionFunctions[key][1]):
+                stack.append(i)
+            currentState = transitionFunctions[key][0]
+            print(f"{currentState}#{''.join(reversed(stack)) if stack else '&'}|", end="")
+            key = tuple([currentState, "$", stack.pop() if stack else "$"])
+        else:
+            stack.append(key[2])
+
+        key = tuple([currentState, symbol, stack.pop() if stack else "$"])
+
+        if key not in transitionFunctions.keys():
+            print(f"fail|", end="")
+            hasFailed = True
+            break
+        for i in reversed(transitionFunctions[key][1]):
+            stack.append(i)
+        currentState = transitionFunctions[key][0]
+        print(f"{currentState}#{''.join(reversed(stack)) if stack else '&'}|", end="")
+
+        key = tuple([currentState, "$", stack.pop() if stack else "$"])
+        while key in transitionFunctions.keys():
+            # stack.append(transitionFunctions[key][1])
+            for i in reversed(transitionFunctions[key][1]):
+                stack.append(i)
+            currentState = transitionFunctions[key][0]
+            print(f"{currentState}#{''.join(reversed(stack)) if stack else '&'}|", end="")
+            key = tuple([currentState, "$", stack.pop() if stack else "$"])
+        else:
+            stack.append(key[2])
+
+    if not hasFailed:
+        if currentState in finalStates:
+            print("1")
+        else:
+            print("0")
+    else:
+        print("0")
