@@ -43,7 +43,7 @@ for inputList in inputLists:
     hasFailed = False
 
     for symbol in inputList:
-        key = tuple([currentState, "$", stack.pop() if stack else "$"])
+        key = (currentState, "$", stack.pop() if stack else "$")
         while key in transitionFunctions.keys():
             # stack.append(transitionFunctions[key][1])
             for i in reversed(transitionFunctions[key][1]):
@@ -51,11 +51,11 @@ for inputList in inputLists:
                     stack.append(i)
             currentState = transitionFunctions[key][0]
             print(f"{currentState}#{''.join(reversed(stack)) if stack else '$'}|", end="")
-            key = tuple([currentState, "$", stack.pop() if stack else "$"])
+            key = (currentState, "$", stack.pop() if stack else "$")
         else:
             stack.append(key[2])
 
-        key = tuple([currentState, symbol, stack.pop() if stack else "$"])
+        key = (currentState, symbol, stack.pop() if stack else "$")
 
         if key not in transitionFunctions.keys():
             print(f"fail|", end="")
@@ -75,7 +75,7 @@ for inputList in inputLists:
                 stack.append(i)
         currentState = transitionFunctions[key][0]
         print(f"{currentState}#{''.join(reversed(stack)) if stack else '$'}|", end="")
-        key = tuple([currentState, "$", stack.pop() if stack else "$"])
+        key = (currentState, "$", stack.pop() if stack else "$")
     else:
         stack.append(key[2])
 
