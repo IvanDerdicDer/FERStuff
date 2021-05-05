@@ -17,7 +17,7 @@ def santa(eNum, rNum, bsemP, bsemD, osemR, osemK):
                     osemR.release()
                 rNum.value = 0
                 print("Poslao sobove na godišnji")
-            if rNum.value <= 10 and rNum.value:
+            if rNum.value == 10:
                 bsemP.release()
                 print("Nahrani sobove")
                 sleep(2)
@@ -35,12 +35,15 @@ def santa(eNum, rNum, bsemP, bsemD, osemR, osemK):
 
 def elf(eNum, bsemP, bsemD, osemK):
     with bsemP:
+        eNum.value += 1
         if eNum.value == 3:
             print("Postavio djeda")
             bsemD.release()
     osemK.acquire()
 
-def reindeer(osemR):
+def reindeer(rNum, bsemP, osemR):
+    with bsemP:
+        rNum.value += 1
     osemR.acquire()
 
 def northPole():
@@ -50,12 +53,10 @@ def northPole():
         sleep(randint(1, 3))
         if randint(1, 100) > 50 and reindeerNumber.value < 10:
             print("Stvorio soba")
-            reindeerNumber.value += 1
-            reindeers.append(mp.Process(target=reindeer, args=(sem['R'],)))
+            reindeers.append(mp.Process(target=reindeer, args=(reindeerNumber, sem['P'], sem['R'],)))
             reindeers[-1].start()
         if randint(1, 100) > 50:
             print("Stvorio patuljka")
-            elfNumber.value += 1
             elfs.append(mp.Process(target=elf, args=(elfNumber, sem['P'], sem['D'], sem['K'])))
             elfs[-1].start()
 
