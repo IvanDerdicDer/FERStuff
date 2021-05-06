@@ -70,7 +70,7 @@ if __name__ == '__main__':
     sem['P'] = mp.Manager().BoundedSemaphore(1)
     sem['D'] = mp.BoundedSemaphore(1)
     sem['D'].acquire()
-    sem['R'] = mp.Manager().Semaphore(0)
+    sem['R'] = mp.Manager().Semaphore(10)
     sem['K'] = mp.Manager().Semaphore(3)
 
     northPole()
