@@ -28,8 +28,7 @@ try:
         if tmpFunc == '^EXIT':
             break
 
-        key = tmpFunc.split('->')[0]
-        data = tmpFunc.split('->')[1]
+        key, data = tmpFunc.split('->')
         transitionFunctions[tuple(key.split(","))] = data.split(",")
 
         tmpFunc = input()

@@ -72,10 +72,12 @@ class Memory:
                             self.holesIndexing[0].size += j - i
                             self.mergeMemory(i, j - i)
                         else:
-                            toAppend = holeIndex(i, j-i)
+                            """toAppend = holeIndex(i, j-i)
                             if toAppend not in self.holesIndexing:
                                 self.holesIndexing.append(toAppend)
-                                self.holesIndexing.sort()
+                                self.holesIndexing.sort()"""
+                            self.holesIndexing = self.freeSpace()
+                            self.holesIndexing.sort()
                         break
                     self.allocatedMemory[j] = '-'
 
@@ -100,6 +102,7 @@ class Memory:
                     except IndexError:
                         break
                 self.holesIndexing = self.freeSpace()
+                self.holesIndexing.sort()
 
 if __name__ == '__main__':
     memorySize = 50
