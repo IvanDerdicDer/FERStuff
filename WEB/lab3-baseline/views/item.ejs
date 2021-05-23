@@ -4,9 +4,9 @@
 <head>
     <title><%= title %></title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="shortcut icon" type="image/png" href="./images/flower-icon.png"/>
-    <link rel="stylesheet" type="text/css" href="./vendor/normalize.css">
-    <link rel="stylesheet" type="text/css" href="./styles/main.css">
+    <link rel="shortcut icon" type="image/png" href="../images/flower-icon.png"/>
+    <link rel="stylesheet" type="text/css" href="../vendor/normalize.css">
+    <link rel="stylesheet" type="text/css" href="../styles/main.css">
     <meta http-equiv="content-type" content="text/html; charset=utf-8"/>
 </head>
 
@@ -17,16 +17,20 @@
 <main class="main">
 
     <!-- INSERT CODE HERE -->
-
-    <!-- <div class="item-view">
-        <img class="item-view-image" src=" ... "></img>
-        <div class="item-view-text">
-            <div class="item-view-text-title font-secondary main-color-emphasized"> ... </div>
-            <hr>
-            <div class="item-view-text-property main-color"> ... <span class="item-view-text-value"> ... </span></div>
-            <div class="item-view-text-desc font-secondary main-color"> ... </div>
+    <div class="container">
+        <div class="item-view">
+            <img class="item-view-image" src="<%= item.imageurl %>"></img>
+            <div class="item-view-text">
+                <div class="item-view-text-title font-secondary main-color-emphasized"><%= item.name %></div>
+                <hr>
+                <div class="item-view-text-property main-color">Price: <span class="item-view-text-value"><%= item.price %> kn</span></div>
+                <div class="item-view-text-property main-color">Available colors: <span class="item-view-text-value"><%= item.colors %></span></div>
+                <div class="item-view-text-property main-color">Category: <span class="item-view-text-value"><%= category.name %></span></div>
+                <div class="item-view-text-property main-color">Seasonal: <span class="item-view-text-value"><%= category.seasonal %></span></div>
+                <div class="item-view-text-desc font-secondary main-color"><%= category.description %></div>
+            </div>
         </div>
-    </div> -->
+    </div>
 
 </main>
 

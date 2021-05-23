@@ -14,7 +14,32 @@
 <%- include(`partials/header`); %>
 
 <main class="main">
-
+    <% for (let i = 0; i < categoryRows.length ; i++){%>
+        <section class="section secondary-color-bg">
+            <div class="centered-container">
+                <h1 class="decorated-title font-secondary main-color">
+                    <span class="main-color-emphasized"><%= categoryRows[i].name %></span>
+                    Inventory</h1>
+                <div class="separator"></div>
+                
+                <div class="gallery">
+                    <% let j = null %>
+                    <% for (j of inventoryRows.filter(a => a.categoryid === categoryRows[i].id)){%>
+                    <div class="photo-box" data-id="<%= j.categoryid %>">
+                        <img class="photo-box-image" src="<%= j.imageurl %>"></img>
+                        <div class="photo-box-title font-secondary main-color-emphasized">
+                            <a class="link" href="item/<%= j.id %>"><%= j.name %></a>
+                        </div>
+                    </div>
+                    <%}%>
+                </div>
+                <% if(j === null){ %>
+                    <div class="photo-box-title font-secondary main-color">No items in this category</div>
+                <% } %>
+                
+            </div>
+        </section>
+    <%}%>
     <!-- INSERT CODE HERE -->
     
     <!-- <div class="gallery">
