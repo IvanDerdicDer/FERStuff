@@ -66,7 +66,7 @@ def isInt(num: str) -> bool:
 
     return True
 
-if __name__ == '__main__':
+def main():
     inputCode = '// stavi sumu kubova prvih deset prirodnih brojeva u varijablu rez\n n = 10 // varijable ne treba deklarirati prije inicijalizaije\nrez = 0\nza i od 1 do n\n    rez = rez + i*i*i\naz\n'
 
     workCode = preprocessor(inputCode)
@@ -78,16 +78,23 @@ if __name__ == '__main__':
             if isComment(part):
                 break
 
-            if isVar(part):
-                output.append(f"IDN {line + 1} {part}")
-
-            if isInt(part):
-                output.append(f"BROJ {line + 1} {part}")
-
             if part in keywordDict.keys():
                 output.append(f"{keywordDict[part]} {line + 1} {part}")
+                continue
 
             if part in operatorDict.keys():
                 output.append(f"{operatorDict[part]} {line + 1} {part}")
+                continue
+
+            if isVar(part):
+                output.append(f"IDN {line + 1} {part}")
+                continue
+
+            if isInt(part):
+                output.append(f"BROJ {line + 1} {part}")
+                continue
 
     print("\n".join(output))
+
+if __name__ == '__main__':
+    main()

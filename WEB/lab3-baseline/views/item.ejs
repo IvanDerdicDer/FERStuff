@@ -17,7 +17,12 @@
 <main class="main">
 
     <!-- INSERT CODE HERE -->
-    <div class="container">
+    <div class="centered-container">
+        <h1 class="decorated-title font-secondary main-color">
+            Item <span class="main-color-emphasized">Information</span>
+            </h1>
+        <div class="separator"></div>
+        <div class="container">
         <div class="item-view">
             <img class="item-view-image" src="<%= item.imageurl %>"></img>
             <div class="item-view-text">
@@ -29,6 +34,28 @@
                 <div class="item-view-text-property main-color">Seasonal: <span class="item-view-text-value"><%= category.seasonal %></span></div>
                 <div class="item-view-text-desc font-secondary main-color"><%= category.description %></div>
             </div>
+        </div>
+        <h1 class="decorated-title font-secondary main-color">
+            Item <span class="main-color-emphasized">Experts</span>
+            <a href="addExpert/<%= item.id %>"><img class="icon_add_edit" src="../images/plus.png"></a>
+            </h1>
+        <div class="separator"></div>
+        <div style = "text-align: left; width: 50%; margin-left: 25%;">
+        <% let i = null %>
+        <% for (i of experts){ %>
+            <section class="section secondary-color-bg expert_supplier_container">
+                <h3 class="decorated-title font-secondary main-color-emphasized"><%= i.name + " " + i.surname %></span>
+                </h3>
+                <div class="item-view-text-property main-color">E-mail: <span class="item-view-text-value"><%= i.email %></span></div>
+                <div class="item-view-text-property main-color">Employed since: <span class="item-view-text-value"><%= i.employedsince %></span></div>
+                <div class="item-view-text-property main-color">Expert since: <span class="item-view-text-value"><%= i.expertsince %></span></div>
+                <hr>
+            </section>
+        <%}%>
+        </div>
+        <% if (i === null){ %>
+            <div class="photo-box-title font-secondary main-color">No experts for this item</div>
+        <% } %>
         </div>
     </div>
 

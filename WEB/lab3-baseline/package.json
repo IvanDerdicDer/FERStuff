@@ -16,6 +16,7 @@
     "dependencies": {
         "ejs": "^3.0.1",
         "express": "^4.17.1",
+        "express-validator": "^6.11.1",
         "pg": "^8.0.3"
     }
 }
