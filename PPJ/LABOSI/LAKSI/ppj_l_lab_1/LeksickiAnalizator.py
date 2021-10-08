@@ -1,6 +1,27 @@
 englishAlphabet = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
 keywordDict = {'za': 'KR_ZA', 'od': 'KR_OD', 'do': 'KR_DO', 'az': 'KR_AZ'}
-operatorDict = {'=': 'OP_PRIDRUZI', '+': 'OP_PLUS', '-': 'OP_MINUS', '*': 'OP_PUTA', '/': 'OP_DIJELI', '(': 'L_ZAGRADA', ')': 'D_ZAGRADA'}
+operatorDict = {'=': 'OP_PRIDRUZI', '+': 'OP_PLUS', '-': 'OP_MINUS', '*': 'OP_PUTA', '/': 'OP_DIJELI', '(': 'L_ZAGRADA',
+                ')': 'D_ZAGRADA'}
+
+fullDict = keywordDict | operatorDict
+
+def removeMultipleSpaces(code: str) -> str:
+    """
+    Removes extra whitespaces after the first whitespace
+    :param code:
+    :return:
+    """
+    workCode = [i for i in code]
+
+    for i in range(len(workCode)):
+        if workCode[i] == ' ':
+            if i + 1 < len(workCode) and workCode[i + 1] == ' ':
+                j = i + 1
+                while workCode[j] == ' ':
+                    workCode[j] = ''
+
+    return ''.join(workCode)
+
 
 def preprocessor(code: str) -> list[str]:
     """
@@ -9,11 +30,11 @@ def preprocessor(code: str) -> list[str]:
     :return:
     """
 
-    workWithCode = [i.strip() for i in code.strip().split('\n')]
+    workWithCode = [i.strip() for i in removeMultipleSpaces(code).strip().split('\n')]
 
     toReturn = []
     for line in workWithCode:
-        line.replace('\t', '    ')
+        line.replace('\t', ' ')
         i = 0
         while i < len(line):
             if line[i] in operatorDict.keys():
@@ -30,6 +51,7 @@ def preprocessor(code: str) -> list[str]:
 
     return toReturn
 
+
 def isVar(var: str) -> bool:
     """
     Checks if the given string is a valid variable
@@ -40,6 +62,7 @@ def isVar(var: str) -> bool:
         return True
 
     return False
+
 
 def isComment(var: str) -> bool:
     """
@@ -52,6 +75,7 @@ def isComment(var: str) -> bool:
             return True
 
     return False
+
 
 def isInt(num: str) -> bool:
     """
@@ -66,10 +90,20 @@ def isInt(num: str) -> bool:
 
     return True
 
-def main():
-    inputCode = '// stavi sumu kubova prvih deset prirodnih brojeva u varijablu rez\n n = 10 // varijable ne treba deklarirati prije inicijalizaije\nrez = 0\nza i od 1 do n\n    rez = rez + i*i*i\naz\n'
 
-    workCode = preprocessor(inputCode)
+def inputCode() -> str:
+    toReturn = ''
+    try:
+        while True:
+            toReturn += input() + '\n'
+    except Exception:
+        pass
+
+    return toReturn
+
+
+def main():
+    workCode = preprocessor(inputCode())
 
     output = []
 
@@ -78,12 +112,8 @@ def main():
             if isComment(part):
                 break
 
-            if part in keywordDict.keys():
-                output.append(f"{keywordDict[part]} {line + 1} {part}")
-                continue
-
-            if part in operatorDict.keys():
-                output.append(f"{operatorDict[part]} {line + 1} {part}")
+            if part in fullDict.keys():
+                output.append(f"{fullDict[part]} {line + 1} {part}")
                 continue
 
             if isVar(part):
@@ -95,6 +125,7 @@ def main():
                 continue
 
     print("\n".join(output))
+
 
 if __name__ == '__main__':
     main()
