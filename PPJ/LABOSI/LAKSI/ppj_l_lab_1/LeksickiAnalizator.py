@@ -1,4 +1,5 @@
 englishAlphabet = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
+numbers = '0123456789'
 keywordDict = {'za': 'KR_ZA', 'od': 'KR_OD', 'do': 'KR_DO', 'az': 'KR_AZ'}
 operatorDict = {'=': 'OP_PRIDRUZI', '+': 'OP_PLUS', '-': 'OP_MINUS', '*': 'OP_PUTA', '/': 'OP_DIJELI', '(': 'L_ZAGRADA',
                 ')': 'D_ZAGRADA'}
@@ -13,12 +14,22 @@ def removeMultipleSpaces(code: str) -> str:
     """
     workCode = [i for i in code]
 
-    for i in range(len(workCode)):
+    i = 0
+    while i < len(workCode):
         if workCode[i] == ' ':
             if i + 1 < len(workCode) and workCode[i + 1] == ' ':
                 j = i + 1
                 while workCode[j] == ' ':
                     workCode[j] = ''
+                    j += 1
+                i = j
+
+        if workCode[i] in numbers and i + 1 < len(workCode) and workCode[i + 1] in englishAlphabet:
+            while i < len(workCode) and workCode[i] in numbers:
+                i += 1
+            workCode.insert(i, ' ')
+
+        i += 1
 
     return ''.join(workCode)
 
@@ -30,15 +41,14 @@ def preprocessor(code: str) -> list[str]:
     :return:
     """
 
-    workWithCode = [i.strip() for i in removeMultipleSpaces(code).strip().split('\n')]
+    workWithCode = [i.strip() for i in removeMultipleSpaces(code.replace('\t', ' ')).strip().split('\n')]
 
     toReturn = []
     for line in workWithCode:
-        line.replace('\t', ' ')
         i = 0
         while i < len(line):
             if line[i] in operatorDict.keys():
-                if i - 1 > 0 and line[i - 1] != ' ' and line[i - 1] != '/':
+                if i - 1 >= 0 and line[i - 1] != ' ' and line[i - 1] != '/':
                     line = line[:i] + ' ' + line[i:]
                     i += 1
 
@@ -58,7 +68,7 @@ def isVar(var: str) -> bool:
     :param var:
     :return:
     """
-    if var[0] in englishAlphabet:
+    if len(var) > 0 and var[0] in englishAlphabet:
         return True
 
     return False
@@ -70,7 +80,7 @@ def isComment(var: str) -> bool:
     :param var:
     :return:
     """
-    if var[0] == '/' and len(var) >= 2:
+    if len(var) >= 2 and var[0] == '/':
         if var[1] == '/':
             return True
 
