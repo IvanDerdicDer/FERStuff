@@ -36,7 +36,7 @@ def removeMultipleSpaces(code: str) -> str:
     return ''.join(workCode)
 
 
-def preprocessor(code: str) -> list[str]:
+def preprocessor(code: str) -> list:
     """
     Makes sure that before and after every operator exists a whitespace
     :param code:
