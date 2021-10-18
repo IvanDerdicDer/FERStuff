@@ -4,7 +4,9 @@ keywordDict = {'za': 'KR_ZA', 'od': 'KR_OD', 'do': 'KR_DO', 'az': 'KR_AZ'}
 operatorDict = {'=': 'OP_PRIDRUZI', '+': 'OP_PLUS', '-': 'OP_MINUS', '*': 'OP_PUTA', '/': 'OP_DIJELI', '(': 'L_ZAGRADA',
                 ')': 'D_ZAGRADA'}
 
-fullDict = keywordDict | operatorDict
+fullDict = keywordDict
+for i in operatorDict.keys():
+    fullDict[i] = operatorDict[i]
 
 def removeMultipleSpaces(code: str) -> str:
     """
