@@ -9,7 +9,7 @@ def loadFile() -> list:
 
     return lexicallyAnalyzed
 
-def createDicts() -> tuple:
+def createDicts() -> dict:
     rules = ['<program> ::= <lista_naredbi> = {IDN KR_ZA ⏊}\n',
              '<lista_naredbi> ::= <naredba> <lista_naredbi> = {IDN KR_ZA}\n',
              '<lista_naredbi> ::= $ = {KR_AZ ⏊}\n',
@@ -31,50 +31,52 @@ def createDicts() -> tuple:
              '<P> ::= IDN = {IDN}\n',
              '<P> ::= BROJ = {BROJ}']
 
-    rules = [line.split("::=") for line in rules]
+    rules = [i.replace("{", "") for i in rules]
+    rules = [i.replace("}", "") for i in rules]
+    rules = [i.strip() for i in rules]
 
-    rules1 = []
-    rules2 = []
-
-    for line in rules:
-        rules1.append([line[0].strip(), line[1].strip().split("=")[0].strip().split(" ")])
-        rules2.append([line[0].strip(), line[1].strip().split("=")[1].strip().split(" ")])
+    rules = [line.split(" ::= ") for line in rules]
 
     transitionDict = {}
-    syntaxDict = {}
+    for line in rules:
+        transitionDict[(line[0], tuple(line[1].split(" = ")[1].split(" ")))] = line[1].split(" = ")[0].split(" ")
 
-    for lineDict, lineSyntax in zip(rules1, rules2):
-        if lineDict[0] not in transitionDict.keys():
-            transitionDict[lineDict[0]] = []
-        transitionDict[lineDict[0]].append(lineDict[1])
-
-        if lineSyntax[0] not in syntaxDict.keys():
-            syntaxDict[lineSyntax[0]] = []
-        syntaxDict[lineSyntax[0]].append(lineSyntax[1])
-
-    return transitionDict, syntaxDict
+    return transitionDict
 
 def main():
     lexicallyAnalyzed = loadFile()
-    transitionDict, syntaxDict = createDicts()
+    transitionDict = createDicts()
 
-    output = ["<program>"]
+    output = []
 
     if not len(lexicallyAnalyzed):
-        print("\n".join(lexicallyAnalyzed + ["$"]))
+        print("\n".join(["<program>", " <lista_naredbi>", "  $"]))
         return
 
     stack = ['<program>']
     line = 0
     while stack:
         stackTop = stack.pop()
-        if lexicallyAnalyzed[line][0] in syntaxDict[stackTop]:
-            line += 1
-            for i in transitionDict[stackTop]:
-                if i == '$':
-                    line -= 1
+
+        for key in transitionDict.keys():
+            if stackTop == key[0] and lexicallyAnalyzed[line][0] in key[1]:
+                for i in reversed(transitionDict[key]):
+                    if i == "$":
+                        line -= 1
+                        break
+                    else:
+                        stack.append(i)
                 else:
-                    stack.append(i)
+                    line += 1
+
+                break
+        else:
+            print("err " + " ".join(lexicallyAnalyzed[line]))
+            return
+
+        output.append(" " * (len(stack) - 1) + stackTop)
+
+    print("\n".join(output))
 
 if __name__ == '__main__':
     main()
