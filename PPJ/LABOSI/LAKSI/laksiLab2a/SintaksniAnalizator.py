@@ -62,58 +62,26 @@ def main():
 
     output = []
 
-    if not len(lexicallyAnalyzed):
-        print("\n".join(["<program>", " <lista_naredbi>", "  $"]))
-        return
-
     stack = [('<program>', 0)]
     line = 0
     while stack:
         stackTop = stack.pop()
         if stackTop[0] in stuffSet:
-            if stackTop[0] == '$':
-                output.append(" " * stackTop[1] + "$")
-                continue
-
             output.append(" " * stackTop[1] + " ".join(lexicallyAnalyzed[line]))
-            line += 1
+            if stackTop[0] != '$':
+                line += 1
             continue
 
         for key in transitionDict.keys():
             if stackTop[0] == key[0] and lexicallyAnalyzed[line][0] in key[1]:
                 for i in reversed(transitionDict[key]):
-                    if i == "$":
-                        stack.append((i, stackTop[1] + 1))
-                        break
-                    else:
-                        if stackTop[0] != '<P>':
-                            stack.append((i, stackTop[1] + 1))
-
-                        if key == ('<P>', ('L_ZAGRADA',)) and i != 'L_ZAGRADA':
-                            stack.append((i, stackTop[1] + 1))
-
-                        if key == ('<P>', ('OP_PLUS',)) and i != 'OP_PLUS':
-                            stack.append((i, stackTop[1] + 1))
-
-                        if key == ('<P>', ('OP_MINUS',)) and i != 'OP_MINUS':
-                            stack.append((i, stackTop[1] + 1))
-                else:
-                    if stackTop in stuffSet:
-                        line += 1
-
+                    stack.append((i, stackTop[1] + 1))
                 break
         else:
             print("err " + " ".join(lexicallyAnalyzed[line] if lexicallyAnalyzed[line] != '⏊' else ['kraj']))
             return
 
         output.append(" " * stackTop[1] + stackTop[0])
-        if stackTop[0] == '<P>':
-            output.append(" " * (stackTop[1] + 1) + " ".join(lexicallyAnalyzed[line]))
-            line += 1
-        """print("!!!<<<---DEBUG--->>>!!!")
-        for i in output:
-            print(i)
-        print('')"""
 
     print("\n".join(output))
 
