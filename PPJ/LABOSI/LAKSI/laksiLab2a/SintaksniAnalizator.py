@@ -31,9 +31,7 @@ def createDict() -> dict:
              '<P> ::= IDN = {IDN}\n',
              '<P> ::= BROJ = {BROJ}']
 
-    rules = [i.replace("{", "") for i in rules]
-    rules = [i.replace("}", "") for i in rules]
-    rules = [i.strip() for i in rules]
+    rules = [i.replace("{", "").replace("}", "").strip() for i in rules]
 
     rules = [line.split(" ::= ") for line in rules]
 
