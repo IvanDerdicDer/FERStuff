@@ -65,7 +65,15 @@ def main():
     while stack:
         stackTop = stack.pop()
         if stackTop[0] in stuffSet:
-            output.append(" " * stackTop[1] + " ".join(lexicallyAnalyzed[line]))
+            if stackTop[0] == '$':
+                output.append(" " * stackTop[1] + "$")
+                continue
+
+            if stackTop[0] != lexicallyAnalyzed[line][0]:
+                print("err " + " ".join(lexicallyAnalyzed[line] if lexicallyAnalyzed[line] != '⏊' else ['kraj']))
+                return
+
+            output.append(" " * stackTop[1] + " ".join(lexicallyAnalyzed[line] if lexicallyAnalyzed[line] != '⏊' else '$'))
             if stackTop[0] != '$':
                 line += 1
             continue
