@@ -5,6 +5,7 @@ class InitType(Enum):
     EQ = 0
     ZA = 1
     NAN = 2
+    NOT = 3
 
 class TreeNode:
     def __init__(self, initValue: tuple[str, int], parentNode = None) -> None:
@@ -20,10 +21,10 @@ class TreeNode:
         return self.children
 
     def __str__(self):
-        return f"{self.value}, {self.depth}"
+        return f"[{self.value}, {self.depth}]"
 
     def __repr__(self):
-        return f"{self.value}, {self.depth}"
+        return f"[{self.value}, {self.depth}]"
 
 def inputFile() -> list[tuple[str, int]]:
     toReturn = []
@@ -52,7 +53,7 @@ def generateTree(notATree: list[tuple[str, int]], root: TreeNode, previousDepth:
         root.addChild(child)
 
 def printTree(root: TreeNode) -> None:
-    print(" " * root.depth + root.value)
+    print(" " * root.depth + root.value + f" | {root.depth}")
     for child in root.getChildren():
         printTree(child)
 
@@ -68,17 +69,17 @@ def checkInitType(child: TreeNode):
 
     return InitType.NAN
 
-def getAllIDN(root: TreeNode, returnDict: dict[str, list[tuple[int, InitType]]]) -> None:
+def getAllIDN(root: TreeNode, returnDict: dict[str, list[tuple[int, InitType, TreeNode, bool]]]) -> None:
     if root.value.startswith("IDN"):
         if root.value.split(" ")[2] not in returnDict:
             returnDict[root.value.split(" ")[2]] = []
         initType = checkInitType(root)
-        returnDict[root.value.split(" ")[2]].append((int(root.value.split(" ")[1]), initType))
+        returnDict[root.value.split(" ")[2]].append((int(root.value.split(" ")[1]), initType, root, True if getZaLoop(root) else False))
 
     for child in root.getChildren():
         getAllIDN(child, returnDict)
 
-def wasZAInit(depth: int, depths: list[tuple[int, InitType]]):
+def wasZAInit(depth: int, depths: list[tuple[int, InitType, TreeNode]]) -> tuple[int, InitType, TreeNode] | bool:
     useList = [i for i in depths if i[0] < depth]
     for depth1 in reversed(useList):
         if depth1[1] == InitType.ZA:
@@ -86,26 +87,56 @@ def wasZAInit(depth: int, depths: list[tuple[int, InitType]]):
 
     return False
 
-def wasEQInit(depth: int, depths: list[tuple[int, InitType]]):
+def wasEQInit(depth: int, depths: list[tuple[int, InitType, TreeNode]]) -> tuple[int, InitType, TreeNode] | bool:
     useList = [i for i in depths if i[0] < depth]
     for depth1 in useList:
-        if depth1[1] == InitType.EQ:
+        if depth1[1] == InitType.EQ and not depth1[3]:
             return depth1
 
     return False
 
-def semanticallyAnalyze(root: TreeNode, idnDict: dict[str, list[tuple[int, InitType]]]):
-    if root.value.startswith("IDN"):
+def isChildOf(parent: TreeNode, child: TreeNode) -> bool:
+    if child.parentNode is None:
+        return False
+
+    if child is parent:
+        return True
+
+    return isChildOf(parent, child.parentNode)
+
+def getZaLoop(child: TreeNode) -> TreeNode | bool:
+    if child.parentNode is None:
+        return False
+
+    if child.value == "<za_petlja>":
+        return child
+
+    return getZaLoop(child.parentNode)
+
+def semanticallyAnalyze(root: TreeNode, idnDict: dict[str, list[tuple[int, InitType, TreeNode, bool]]]):
+    while root.value.startswith("IDN"):
         if checkInitType(root) == InitType.NAN:
             zaInit = wasZAInit(int(root.value.split(' ')[1]), idnDict[root.value.split(" ")[2]])
             eqInit = wasEQInit(int(root.value.split(' ')[1]), idnDict[root.value.split(" ")[2]])
+
             if zaInit:
-                print(f"{root.value.split(' ')[1]} {zaInit[0]} {root.value.split(' ')[2]}")
-            elif eqInit:
+                if isChildOf(zaInit[2].parentNode, root):
+                    print(f"{root.value.split(' ')[1]} {zaInit[0]} {root.value.split(' ')[2]}")
+                    break
+
+            if eqInit:
+                if any([int(root.value.split(' ')[1]) == a[0] for a in idnDict[root.value.split(" ")[2]] if a[1] == InitType.ZA]):
+                    print(f"err {root.value.split(' ')[1]} {root.value.split(' ')[2]}")
+                    exit(0)
+
                 print(f"{root.value.split(' ')[1]} {eqInit[0]} {root.value.split(' ')[2]}")
-            elif not(zaInit or eqInit):
+                break
+
+            if not(zaInit or eqInit):
                 print(f"err {root.value.split(' ')[1]} {root.value.split(' ')[2]}")
                 exit(0)
+
+        break
 
     for child in root.getChildren():
         semanticallyAnalyze(child, idnDict)
@@ -115,6 +146,7 @@ def main():
 
     treeRoot = TreeNode(("<program>", 0))
     generateTree(notATree, treeRoot, 0)
+    #print(f"{isChildOf(treeRoot, treeRoot.getChildren()[0])}")
     idnDict = {}
     getAllIDN(treeRoot, idnDict)
 
