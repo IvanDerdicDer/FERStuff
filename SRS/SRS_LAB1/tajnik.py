@@ -128,6 +128,13 @@ def check_master_password(master: str, db: DB_TYPE) -> bool:
 
 
 def encrypt_passwd(passwd: str, location: str, master: str) -> ENCRYPTED_PASSWD:
+    """
+    Function that encrypts the password with integrity in mind
+    :param passwd: Password to encrypt
+    :param location: Location with which th password is associated
+    :param master: Master password
+    :return:
+    """
     key = scrypt(master, location, 32, N=2**14, r=8, p=8)
     cipher = AES.new(key, AES.MODE_EAX)
     nonce = cipher.nonce
@@ -138,6 +145,13 @@ def encrypt_passwd(passwd: str, location: str, master: str) -> ENCRYPTED_PASSWD:
 
 
 def decrypt_passwd(encrypted_passwd: ENCRYPTED_PASSWD, location: str, master: str) -> str:
+    """
+    Function that decrypts a password for the given location
+    :param encrypted_passwd:
+    :param location: Location with which th password is associated
+    :param master: Master password
+    :return:
+    """
     key = scrypt(master, location, 32, N=2**14, r=8, p=8)
     cipher = AES.new(key, AES.MODE_EAX, nonce=encrypted_passwd[2])
 
@@ -147,7 +161,7 @@ def decrypt_passwd(encrypted_passwd: ENCRYPTED_PASSWD, location: str, master: st
 
 
 def put_passwd_in_db(location: str, passwd: str, master: str, db: DB_TYPE) -> None:
-    secret = b'CNSx7!3!TLMzLPGL'
+    secret = SHA256.new(location.encode()).digest()
     h = HMAC.new(secret, digestmod=SHA256)
     h.update(location.encode())
 
@@ -160,7 +174,7 @@ def put_passwd_in_db(location: str, passwd: str, master: str, db: DB_TYPE) -> No
 
 
 def get_passwd_from_db(location: str, master: str, db: DB_TYPE) -> str:
-    secret = b'CNSx7!3!TLMzLPGL'
+    secret = SHA256.new(location.encode()).digest()
     h = HMAC.new(secret, digestmod=SHA256)
     h.update(location.encode())
 
