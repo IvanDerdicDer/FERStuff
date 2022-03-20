@@ -108,8 +108,8 @@ def init_database(master: str) -> None:
 def check_master_password(master: str, db: DB_TYPE) -> bool:
     """
     Function that checks if the master password is correct
-    :param master:
-    :param db:
+    :param master: Master password
+    :param db: Database
     :return:
     """
     secret = b'%vMT8m6XT3u3m!&H'
@@ -135,7 +135,7 @@ def encrypt_passwd(passwd: str, location: str, master: str) -> ENCRYPTED_PASSWD:
     :param master: Master password
     :return:
     """
-    key = scrypt(master, location, 32, N=2**14, r=8, p=8)
+    key = scrypt(master, location, 32, N=2**14, r=8, p=2)
     cipher = AES.new(key, AES.MODE_EAX)
     nonce = cipher.nonce
 
@@ -152,7 +152,7 @@ def decrypt_passwd(encrypted_passwd: ENCRYPTED_PASSWD, location: str, master: st
     :param master: Master password
     :return:
     """
-    key = scrypt(master, location, 32, N=2**14, r=8, p=8)
+    key = scrypt(master, location, 32, N=2**14, r=8, p=2)
     cipher = AES.new(key, AES.MODE_EAX, nonce=encrypted_passwd[2])
 
     plain_text = cipher.decrypt_and_verify(encrypted_passwd[0], encrypted_passwd[1])
@@ -161,6 +161,14 @@ def decrypt_passwd(encrypted_passwd: ENCRYPTED_PASSWD, location: str, master: st
 
 
 def put_passwd_in_db(location: str, passwd: str, master: str, db: DB_TYPE) -> None:
+    """
+    Function that puts the password for the given location in the database
+    :param location: Location
+    :param passwd: Password associated with the location
+    :param master: Master password
+    :param db: Database
+    :return:
+    """
     secret = SHA256.new(location.encode()).digest()
     h = HMAC.new(secret, digestmod=SHA256)
     h.update(location.encode())
@@ -174,6 +182,13 @@ def put_passwd_in_db(location: str, passwd: str, master: str, db: DB_TYPE) -> No
 
 
 def get_passwd_from_db(location: str, master: str, db: DB_TYPE) -> str:
+    """
+    Function that gets the password from the database
+    :param location: Location
+    :param master: Master password
+    :param db: Database
+    :return:
+    """
     secret = SHA256.new(location.encode()).digest()
     h = HMAC.new(secret, digestmod=SHA256)
     h.update(location.encode())
