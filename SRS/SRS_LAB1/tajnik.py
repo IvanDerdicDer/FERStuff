@@ -169,7 +169,8 @@ def put_passwd_in_db(location: str, passwd: str, master: str, db: DB_TYPE) -> No
     :param db: Database
     :return:
     """
-    secret = SHA256.new(location.encode()).digest()
+    salt = 'cPf$BPaXx#+!NT24'
+    secret = scrypt(location, salt, 16, N=2**10, r=8, p=1)
     h = HMAC.new(secret, digestmod=SHA256)
     h.update(location.encode())
 
@@ -189,7 +190,8 @@ def get_passwd_from_db(location: str, master: str, db: DB_TYPE) -> str:
     :param db: Database
     :return:
     """
-    secret = SHA256.new(location.encode()).digest()
+    salt = 'cPf$BPaXx#+!NT24'
+    secret = scrypt(location, salt, 16, N=2 ** 10, r=8, p=1)
     h = HMAC.new(secret, digestmod=SHA256)
     h.update(location.encode())
 
