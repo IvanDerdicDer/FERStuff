@@ -2,6 +2,7 @@ import argparse
 import queue
 from typing import Tuple, List, Dict
 from time import time
+import os
 
 GRAPH = Dict[str, List[Dict]]
 HEURISTIC = Dict[str, int]
@@ -37,27 +38,22 @@ class TreeNode:
     def __repr__(self):
         return f'({self.label}, {self.weight}, {self.heuristic}, {self.depth})'
 
+    def __lt__(self, other):
+        return self.label < other.label
+
 
 class UCSNode(TreeNode):
-    def __eq__(self, other):
-        return self.weight == other.weight
-
-    def __gt__(self, other):
-        return self.weight > other.weight
-
     def __lt__(self, other):
+        if self.weight == other.weight:
+            return self.label < other.label
         return self.weight < other.weight
 
 
 class AstarNode(TreeNode):
-    def __eq__(self, other):
-        return self.heuristic == other.heuristic
-
-    def __gt__(self, other):
-        return self.heuristic > other.heuristic
-
     def __lt__(self, other):
-        return self.heuristic < other.heuristic
+        if (self.weight + self.heuristic) == (other.weight + other.heuristic):
+            return self.label < other.label
+        return (self.weight + self.heuristic) < (other.weight + other.heuristic)
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -102,23 +98,35 @@ def load_file(filepath: str) -> List[str]:
     return file
 
 
-def check_child_exists_in_path(parent: TreeNode, child: TreeNode):
+def tree_as_list(tree: TreeNode):
+    to_return = []
+    stack = [tree]
+
+    while stack:
+        top = stack.pop()
+        to_return.append(top)
+
+        stack += list(reversed(top.children))
+
+    return to_return
+
+
+def check_was_visited(states: List[TreeNode], child: TreeNode):
     """
-    Checks if child exists in the current path
-    :param parent:
+
+    :param states:
     :param child:
     :return:
     """
-    while parent.parent:
-        if parent.parent.label == child.label:
-            return True
+    to_return = None
+    for state in states:
+        if state.label == child.label:
+            return state
 
-        parent = parent.parent
-
-    return False
+    return None
 
 
-def space_search(start: str, destination: str, graph: GRAPH, sorting: bool = False, node_type=TreeNode) -> Tuple:
+def space_search(start: str, destination: List[str], graph: GRAPH, sorting: bool = False, node_type=TreeNode) -> Tuple:
     """
     Function that searches for the path from the start to the destination for the given graph
     :param node_type: Type of the node that is used
@@ -133,8 +141,10 @@ def space_search(start: str, destination: str, graph: GRAPH, sorting: bool = Fal
         'depth': 0
     }
 
+    visited = {}
+
     tree: node_type = node_type(**kwargs)
-    q: queue.LifoQueue = queue.LifoQueue()
+    q: queue.SimpleQueue = queue.SimpleQueue()
     q.put(tree)
     if sorting:
         q: queue.PriorityQueue = queue.PriorityQueue()
@@ -143,28 +153,37 @@ def space_search(start: str, destination: str, graph: GRAPH, sorting: bool = Fal
     while q.qsize() != 0:
         first: node_type = q.get()
 
+        if first.label in destination:
+            return tree, first
+
         if first.parent:
             first.parent.children.append(first)
-
-        if first.label == destination:
-            return tree, first
+            visited[first.label] = first.weight
 
         if first.depth + 1 < len(graph):
             to_append = []
             for i in graph[first.label]:
-                i['weight'] += first.weight
                 i['depth'] = first.depth + 1
                 i['parent'] = first
                 node = node_type(**i)
 
                 # Ensures no infinite loops happen
-                if not check_child_exists_in_path(first, node):
-                    to_append.append(node)
+                if not sorting and node.label in visited:
+                    continue
+
+                if node.label in visited and visited[node.label] < node.weight:
+                    continue
+
+                node.weight += first.weight
+                to_append.append(node)
+
+            to_append.sort()
 
             for i in to_append:
                 q.put(i)
+                visited[i.label] = i.weight
 
-    return None, None
+    return tree, None
 
 
 def proces_bare_graph(g: List[str]) -> Tuple[str, str, GRAPH]:
@@ -174,9 +193,9 @@ def proces_bare_graph(g: List[str]) -> Tuple[str, str, GRAPH]:
     :return:
     """
     start = g.pop(0)
-    destination = g.pop(0)
+    destination = g.pop(0).split(' ')
 
-    graph = {i.split(': ')[0]: i.split(': ')[1] for i in g}
+    graph = {i.split(':')[0]: i.split(':')[1].strip() for i in g}
 
     for key in graph:
         kwarg_list = []
@@ -184,6 +203,9 @@ def proces_bare_graph(g: List[str]) -> Tuple[str, str, GRAPH]:
             kwarg_list.append({
                 'label': value.split(',')[0],
                 'weight': int(value.split(',')[1])
+            } if value else {
+                'label': '',
+                'weight': 0
             })
 
         graph[key] = kwarg_list
@@ -217,6 +239,11 @@ def add_heuristic_to_graph(graph: GRAPH, heuristic: HEURISTIC) -> GRAPH:
 
 
 def get_path(destination: TreeNode):
+    """
+    Function that gets the full path
+    :param destination: Target state
+    :return:
+    """
     path_list = [destination.label]
     while destination.parent:
         path_list.append(destination.parent.label)
@@ -225,23 +252,63 @@ def get_path(destination: TreeNode):
     return list(reversed(path_list))
 
 
+def get_number_of_nodes(tree: TreeNode):
+    count = 0
+
+    stack = [tree]
+
+    while stack:
+        top = stack.pop()
+
+        count += 1
+
+        for child in reversed(top.children):
+            stack.append(child)
+
+    return count
+
+
+def print_solution(alg: str, heuristic_file: str, tree: TreeNode, destination: TreeNode):
+    """
+    Function that prints the solution is the correct format
+    :param alg: Algorithm used
+    :param heuristic_file: Name of the file
+    :param tree: Complete tree
+    :param destination: Found solution
+    :return:
+    """
+
+    if alg == 'astar':
+        print(f'# A-STAR {heuristic_file}')
+    else:
+        print(f'# {alg.upper()}')
+
+    print(f'[FOUND_SOLUTION]: {"yes" if destination else "no"}')
+
+    print(f"[STATES_VISITED]: {get_number_of_nodes(tree)}")
+
+    path = get_path(destination) if destination else []
+
+    print(f"[PATH_LENGTH]: {len(path)}")
+
+    print(f"[TOTAL_COST]: {destination.weight:.1f}")
+
+    print(f'[PATH]: {" => ".join(path)}')
+
+
 def main():
     args = parse_arguments()
 
     if args.alg == 'bfs':
         start, destination, graph = proces_bare_graph(load_file(args.ss))
         tree, destination = space_search(start, destination, graph)
-        path = get_path(destination)
-        print(path)
-        print(len(path))
+        print_solution(args.alg, None, tree, destination)
         return
 
     if args.alg == 'ucs':
         start, destination, graph = proces_bare_graph(load_file(args.ss))
         tree, destination = space_search(start, destination, graph, True, UCSNode)
-        path = get_path(destination)
-        print(path)
-        print(len(path))
+        print_solution(args.alg, None, tree, destination)
         return
 
     if args.alg == 'astar':
@@ -249,9 +316,7 @@ def main():
         heuristic = proces_bare_heuristic(load_file(args.h))
         graph = add_heuristic_to_graph(graph, heuristic)
         tree, destination = space_search(start, destination, graph, True, AstarNode)
-        path = get_path(destination)
-        print(path)
-        print(len(path))
+        print_solution(args.alg, os.path.basename(args.h), tree, destination)
         return
 
 
