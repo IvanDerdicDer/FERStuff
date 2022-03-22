@@ -1,5 +1,4 @@
 import argparse
-import json
 import pickle
 import os
 from Crypto.Hash import HMAC, SHA256
@@ -155,9 +154,12 @@ def decrypt_passwd(encrypted_passwd: ENCRYPTED_PASSWD, location: str, master: st
     key = scrypt(master, location, 32, N=2**14, r=8, p=2)
     cipher = AES.new(key, AES.MODE_EAX, nonce=encrypted_passwd[2])
 
-    plain_text = cipher.decrypt_and_verify(encrypted_passwd[0], encrypted_passwd[1])
-
-    return plain_text.decode()
+    try:
+        plain_text = cipher.decrypt_and_verify(encrypted_passwd[0], encrypted_passwd[1])
+        return plain_text.decode()
+    except ValueError:
+        print("Master password incorrect or integrity check failed")
+        exit()
 
 
 def put_passwd_in_db(location: str, passwd: str, master: str, db: DB_TYPE) -> None:
@@ -199,7 +201,8 @@ def get_passwd_from_db(location: str, master: str, db: DB_TYPE) -> str:
         db_keys = list(db.keys())
         h.hexverify(db_keys[db_keys.index(h.hexdigest())])
     else:
-        raise ValueError('Location does not exist in the database')
+        print('Location does not exist in the database')
+        exit()
 
     return decrypt_passwd(db[h.hexdigest()], location, master)
 
@@ -214,12 +217,14 @@ def main():
         return
 
     if not os.path.isfile('a'):
-        raise FileNotFoundError("Database was not initialized")
+        print("Database was not initialized")
+        exit(0)
 
     db = read_db_from_disc()
 
     if not check_master_password(args.master, db):
-        raise ValueError('Master password is not correct')
+        print('Master password is not correct')
+        exit()
 
     if args.put:
         put_passwd_in_db(args.location, args.passwd, args.master, db)

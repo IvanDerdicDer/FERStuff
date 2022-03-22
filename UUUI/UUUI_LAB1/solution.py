@@ -1,8 +1,8 @@
 import argparse
-import queue
-from typing import Tuple, List, Dict
-from time import time
 import os
+from collections import deque
+from time import time
+from typing import Tuple, List, Dict
 
 GRAPH = Dict[str, List[Dict]]
 HEURISTIC = Dict[str, int]
@@ -40,6 +40,15 @@ class TreeNode:
 
     def __lt__(self, other):
         return self.label < other.label
+
+    def __eq__(self, other):
+        if not other:
+            return False
+
+        return all([
+            self.label == other.label,
+            (self.weight + self.heuristic) == (other.weight + other.heuristic)
+        ])
 
 
 class UCSNode(TreeNode):
@@ -118,7 +127,6 @@ def check_was_visited(states: List[TreeNode], child: TreeNode):
     :param child:
     :return:
     """
-    to_return = None
     for state in states:
         if state.label == child.label:
             return state
@@ -141,24 +149,26 @@ def space_search(start: str, destination: List[str], graph: GRAPH, sorting: bool
         'depth': 0
     }
 
-    visited = {}
-
     tree: node_type = node_type(**kwargs)
-    q: queue.SimpleQueue = queue.SimpleQueue()
-    q.put(tree)
-    if sorting:
-        q: queue.PriorityQueue = queue.PriorityQueue()
-        q.put(tree)
+    q: deque = deque()
+    q.append(tree)
 
-    while q.qsize() != 0:
-        first: node_type = q.get()
+    visited = [tree]
+
+    while q:
+        if sorting:
+            q = deque(sorted(q))
+
+        first: node_type = q.popleft()
+
+        print(first, id(first))
 
         if first.label in destination:
             return tree, first
 
         if first.parent:
             first.parent.children.append(first)
-            visited[first.label] = first.weight
+            visited.append(first)
 
         if first.depth + 1 < len(graph):
             to_append = []
@@ -168,32 +178,29 @@ def space_search(start: str, destination: List[str], graph: GRAPH, sorting: bool
                 node = node_type(**i)
 
                 # Ensures no infinite loops happen
-                if not sorting and node.label in visited:
-                    continue
+                c = check_was_visited(visited + list(q), node)
 
-                if node.label in visited and visited[node.label] < node.weight:
-                    continue
+                if not(c and (c.weight + c.heuristic) < (node.weight + node.heuristic)):
+                    node.weight += first.weight
+                    to_append.append(node)
 
-                node.weight += first.weight
-                to_append.append(node)
-
-            to_append.sort()
+            if not sorting:
+                to_append.sort()
 
             for i in to_append:
-                q.put(i)
-                visited[i.label] = i.weight
+                q.append(i)
 
     return tree, None
 
 
-def proces_bare_graph(g: List[str]) -> Tuple[str, str, GRAPH]:
+def proces_bare_graph(g: List[str]) -> Tuple[str, List[str], GRAPH]:
     """
     Turns the raw input from loading the file into a data structure
     :param g: Raw input
     :return:
     """
     start = g.pop(0)
-    destination = g.pop(0).split(' ')
+    destination: List[str] = g.pop(0).split(' ')
 
     graph = {i.split(':')[0]: i.split(':')[1].strip() for i in g}
 
@@ -201,9 +208,9 @@ def proces_bare_graph(g: List[str]) -> Tuple[str, str, GRAPH]:
         kwarg_list = []
         for value in graph[key].split(' '):
             kwarg_list.append({
-                'label': value.split(',')[0],
-                'weight': int(value.split(',')[1])
-            } if value else {
+                                  'label': value.split(',')[0],
+                                  'weight': int(value.split(',')[1])
+                              } if value else {
                 'label': '',
                 'weight': 0
             })
