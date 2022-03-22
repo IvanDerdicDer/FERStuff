@@ -4,10 +4,13 @@ import os
 from Crypto.Hash import HMAC, SHA256
 from Crypto.Protocol.KDF import scrypt
 from Crypto.Cipher import AES
+from Crypto.Random import get_random_bytes
+from typing import Dict, Tuple
+import base64
 
 
-DB_TYPE = dict[str, tuple[bytes, bytes, bytes]]
-ENCRYPTED_PASSWD = tuple[bytes, bytes, bytes]
+DB_TYPE = Dict[str, Tuple[bytes, bytes, bytes]]
+ENCRYPTED_PASSWD = Tuple[bytes, bytes, bytes]
 
 
 def parse_args() -> argparse.Namespace:
@@ -134,13 +137,14 @@ def encrypt_passwd(passwd: str, location: str, master: str) -> ENCRYPTED_PASSWD:
     :param master: Master password
     :return:
     """
-    key = scrypt(master, location, 32, N=2**14, r=8, p=2)
+    salt = get_random_bytes(16)
+    key = scrypt(master, str(salt), 32, N=2**14, r=8, p=2)
     cipher = AES.new(key, AES.MODE_EAX)
     nonce = cipher.nonce
 
     cipher_text, tag = cipher.encrypt_and_digest(passwd.encode())
 
-    return cipher_text, tag, nonce
+    return salt + cipher_text, tag, nonce
 
 
 def decrypt_passwd(encrypted_passwd: ENCRYPTED_PASSWD, location: str, master: str) -> str:
@@ -155,7 +159,7 @@ def decrypt_passwd(encrypted_passwd: ENCRYPTED_PASSWD, location: str, master: st
     cipher = AES.new(key, AES.MODE_EAX, nonce=encrypted_passwd[2])
 
     try:
-        plain_text = cipher.decrypt_and_verify(encrypted_passwd[0], encrypted_passwd[1])
+        plain_text = cipher.decrypt_and_verify(encrypted_passwd[0][16:], encrypted_passwd[1])
         return plain_text.decode()
     except ValueError:
         print("Master password incorrect or integrity check failed")
@@ -204,7 +208,10 @@ def get_passwd_from_db(location: str, master: str, db: DB_TYPE) -> str:
         print('Location does not exist in the database')
         exit()
 
-    return decrypt_passwd(db[h.hexdigest()], location, master)
+    encrypted = db[h.hexdigest()]
+    salt = encrypted[0][0:16]
+
+    return decrypt_passwd(db[h.hexdigest()], str(salt), master)
 
 
 def main():
