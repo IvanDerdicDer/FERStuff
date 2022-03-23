@@ -6,7 +6,6 @@ from Crypto.Protocol.KDF import scrypt
 from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
 from typing import Dict, Tuple
-import base64
 
 
 DB_TYPE = Dict[str, Tuple[bytes, bytes, bytes]]
