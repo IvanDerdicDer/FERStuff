@@ -170,6 +170,8 @@ def ucs(start: str, destination: List[str], graph: GRAPH):
     while q:
         first: UCSNode = q.get()
 
+        visited.add(first.label)
+
         if first.parent:
             first.parent.children.append(first)
 
@@ -185,7 +187,6 @@ def ucs(start: str, destination: List[str], graph: GRAPH):
                 node.weight += first.weight
 
                 if node.label not in visited:
-                    visited.add(node.label)
                     q.put(node)
 
     return tree, None
@@ -266,7 +267,8 @@ def check_is_optimistic(destination: List[str], graph: GRAPH, heuristic: HEURIST
 
     for state, next_states in graph.items():
         for next_state in next_states:
-            distance[s[state]][s[next_state['label']]] = next_state['weight']
+            if next_state['label']:
+                distance[s[state]][s[next_state['label']]] = next_state['weight']
 
     for k in range(size):
         for i in range(size):
@@ -274,6 +276,7 @@ def check_is_optimistic(destination: List[str], graph: GRAPH, heuristic: HEURIST
                 if distance[i][j] > (distance[i][k] + distance[k][j]):
                     distance[i][j] = distance[i][k] + distance[k][j]
 
+    bl = True
     optimistic_heuristic: Dict[str, Dict] = {i: {'bl': True} for i in heuristic}
     for state in graph:
         min_distance = distance[s[state]][s[destination[0]]]
@@ -281,20 +284,21 @@ def check_is_optimistic(destination: List[str], graph: GRAPH, heuristic: HEURIST
             min_distance = min(min_distance, distance[s[state]][s[destination[i]]])
 
         is_optimistic = heuristic[state] <= min_distance
+        bl &= is_optimistic
         optimistic_heuristic[state]['bl'] &= is_optimistic
         optimistic_heuristic[state]['b'] = is_optimistic
         optimistic_heuristic[state]['min_distance'] = min_distance
 
-    return optimistic_heuristic
+    return optimistic_heuristic, bl
 
 
-def print_is_optimistic(optimistic_heuristic: Dict[str, Dict], heuristic: HEURISTIC, h_path: str):
+def print_is_optimistic(optimistic_heuristic: Dict[str, Dict], heuristic: HEURISTIC, h_path: str, bl):
     print(f"# HEURISTIC-OPTIMISTIC {h_path}")
 
     for state in optimistic_heuristic:
-        print(f"[CONDITION]: {'[OK]' if optimistic_heuristic[state]['b'] else '[ERR]'} h({state}) <= h*: {heuristic[state]} <= {optimistic_heuristic[state]['min_distance']}")
+        print(f"[CONDITION]: {'[OK]' if optimistic_heuristic[state]['b'] else '[ERR]'} h({state}) <= h*: {heuristic[state]:.1f} <= {optimistic_heuristic[state]['min_distance']:.1f}")
 
-    print(f"[CONCLUSION]: Heuristic {'is' if optimistic_heuristic[list(optimistic_heuristic.keys())[-1]]['bl'] else 'is not'} optimistic.")
+    print(f"[CONCLUSION]: Heuristic {'is' if bl else 'is not'} optimistic.")
 
 
 def check_is_consistent(graph: GRAPH, heuristic: HEURISTIC):
@@ -303,13 +307,14 @@ def check_is_consistent(graph: GRAPH, heuristic: HEURISTIC):
     bl = True
     for state, next_states in graph.items():
         for next_state in next_states:
-            b = heuristic[state] <= heuristic[next_state['label']] + next_state['weight']
-            bl &= b
-            consistent_heuristic.append({
-                'b': b,
-                'state': state,
-                'next_state': next_state
-            })
+            if next_state['label']:
+                b = heuristic[state] <= heuristic[next_state['label']] + next_state['weight']
+                bl &= b
+                consistent_heuristic.append({
+                    'b': b,
+                    'state': state,
+                    'next_state': next_state
+                })
 
     return consistent_heuristic, bl
 
@@ -318,7 +323,7 @@ def print_is_consistent(consistent_heuristic, heuristic: HEURISTIC, bl, h_path):
     print(f"# HEURISTIC-OPTIMISTIC {h_path}")
 
     for i in consistent_heuristic:
-        print(f"[CONDITION]: {'[OK]' if i['b'] else '[ERR]'} h({i['state']}) <= h({i['next_state']['label']}) + c: {heuristic[i['state']]} <= {heuristic[i['next_state']['label']]} + {i['next_state']['weight']}")
+        print(f"[CONDITION]: {'[OK]' if i['b'] else '[ERR]'} h({i['state']}) <= h({i['next_state']['label']}) + c: {heuristic[i['state']]:.1f} <= {heuristic[i['next_state']['label']]:.1f} + {i['next_state']['weight']:.1f}")
 
     print(f"[CONCLUSION]: Heuristic {'is' if bl else 'is not'} consistent.")
 
@@ -370,7 +375,8 @@ def add_heuristic_to_graph(graph: GRAPH, heuristic: HEURISTIC) -> GRAPH:
     """
     for key in graph:
         for node in graph[key]:
-            node['heuristic'] = heuristic[node['label']]
+            if node['label']:
+                node['heuristic'] = heuristic[node['label']]
 
     return graph
 
@@ -442,8 +448,8 @@ def main():
     if args.check_optimistic:
         _, destination, graph = proces_bare_graph(load_file(args.ss))
         heuristic = proces_bare_heuristic(load_file(args.h))
-        optimistic_heuristic = check_is_optimistic(destination, graph, heuristic)
-        print_is_optimistic(optimistic_heuristic, heuristic, args.h)
+        optimistic_heuristic, bl = check_is_optimistic(destination, graph, heuristic)
+        print_is_optimistic(optimistic_heuristic, heuristic, args.h, bl)
         return
 
     if args.check_consistent:
