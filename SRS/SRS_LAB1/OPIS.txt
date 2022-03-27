@@ -1,0 +1,12 @@
+Za generiranje ključeva se koristi scrypt algoritam s preporučenim vrijednostima za enkripciju lozinki.
+Kod generiranja ključa salt se svaki put iznova generira.
+Kod generiranja ključa ko peper se koristi lokacija za koju se sprema lozinka.
+Time se osigurava da je kriptirani tekst svaki put drukčiji i da se i prilikom zamijeni lozinki za dvije lokacije ne
+može dešifrirati.
+Za enkripciju se koristi AES algoritam čime se osigurava i povjerljivost i integritet.
+Lozinke se spremaju kao key value parovi u dictionary, gdje je key lokacija hashirana HMAC algoritmom, a value je
+tuple koji sadrži salt + cypher_text, tag, nonce.
+Master lozinka se također sprema u bazu kao key value par gdje je key slučajno generirani string. Sprema se na isti
+način ko i ostale lozinke.
+Ispravnost master lozinke se provjerava prilikom svakog pokretanja program, ukoliko nije inicijalizacija.
+Ovime se osigurava da program radi i s velikim brojem lozinaka.

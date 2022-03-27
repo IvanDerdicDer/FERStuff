@@ -16,11 +16,32 @@ def parse_args() -> argparse.Namespace:
     Function that parses required command line arguments
     :return:
     """
-    parser = argparse.ArgumentParser(description="A simple password manager")
+
+    examples = 'examples:\n'\
+        '    Initialize password database:\n'\
+        '    python3 tajnik.py -i -m ExampleMasterPassword\n'\
+        '\n'\
+        '    Put a password into the database:\n'\
+        '    python3 tajnik.py -p -m ExampleMasterPassword -l www.example.org -pass ExamplePassword\n'\
+        '\n'\
+        '    Get a password from the database:\n'\
+        '    python3 tajnik.py -g -m ExampleMasterPassword -l www.example.org\n'
+
+    parser = argparse.ArgumentParser(description="A simple password manager",
+                                     epilog=examples,
+                                     formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('-i', '--init',
                         action='store_true',
                         default=False,
                         help="Flag to init the password manager")
+    parser.add_argument('-p', '--put',
+                        action='store_true',
+                        default=False,
+                        help='Flag to add a password to the database')
+    parser.add_argument('-g', '--get',
+                        action='store_true',
+                        default=False,
+                        help='Flag to get your password from the database')
     parser.add_argument('-m', '--master',
                         type=str,
                         required=True,
@@ -33,14 +54,6 @@ def parse_args() -> argparse.Namespace:
                         type=str,
                         required=False,
                         help='Password you want to store')
-    parser.add_argument('-p', '--put',
-                        action='store_true',
-                        default=False,
-                        help='Flag to add a password to the database')
-    parser.add_argument('-g', '--get',
-                        action='store_true',
-                        default=False,
-                        help='Flag to get your password from the database')
 
     return parser.parse_args()
 
@@ -97,11 +110,9 @@ def init_database(master: str) -> None:
     :param master: Master password
     :return:
     """
-    secret = b'%vMT8m6XT3u3m!&H'
-    h = HMAC.new(secret, digestmod=SHA256)
-    h.update(master.encode())
+    db = {}
 
-    db = {h.hexdigest(): encrypt_passwd('R^a$NL3W?FX*X&SP', master)}
+    put_passwd_in_db('%#b4cbks%CmVUced', master, master, db)
 
     write_db_to_disc(db)
 
@@ -113,30 +124,19 @@ def check_master_password(master: str, db: DB_TYPE) -> bool:
     :param db: Database
     :return:
     """
-    secret = b'%vMT8m6XT3u3m!&H'
-    h = HMAC.new(secret, digestmod=SHA256)
-    h.update(master.encode())
-
-    if h.hexdigest() in db:
-        try:
-            db_keys = list(db)
-            h.hexverify(db_keys[db_keys.index(h.hexdigest())])
-            return True
-        except ValueError:
-            return False
-
-    return False
+    return get_passwd_from_db('%#b4cbks%CmVUced', master, db) == master
 
 
-def encrypt_passwd(passwd: str, master: str) -> ENCRYPTED_PASSWD:
+def encrypt_passwd(passwd: str, master: str, location: str) -> ENCRYPTED_PASSWD:
     """
     Function that encrypts the password with integrity in mind
+    :param location:
     :param passwd: Password to encrypt
     :param master: Master password
     :return:
     """
     salt = get_random_bytes(16)
-    key = scrypt(master, salt, 32, N=2 ** 14, r=8, p=2)
+    key = scrypt(master, str(salt) + location, 32, N=2 ** 14, r=8, p=2)
     cipher = AES.new(key, AES.MODE_EAX)
     nonce = cipher.nonce
 
@@ -145,7 +145,7 @@ def encrypt_passwd(passwd: str, master: str) -> ENCRYPTED_PASSWD:
     return salt + cipher_text, tag, nonce
 
 
-def decrypt_passwd(encrypted_passwd: ENCRYPTED_PASSWD, salt: bytes, master: str) -> str:
+def decrypt_passwd(encrypted_passwd: ENCRYPTED_PASSWD, salt: str, master: str) -> str:
     """
     Function that decrypts a password for the given location
     :param encrypted_passwd:
@@ -153,7 +153,7 @@ def decrypt_passwd(encrypted_passwd: ENCRYPTED_PASSWD, salt: bytes, master: str)
     :param master: Master password
     :return:
     """
-    key = scrypt(master, salt.decode('unicode_escape'), 32, N=2 ** 14, r=8, p=2)
+    key = scrypt(master, salt, 32, N=2 ** 14, r=8, p=2)
     cipher = AES.new(key, AES.MODE_EAX, nonce=encrypted_passwd[2])
 
     try:
@@ -179,7 +179,7 @@ def put_passwd_in_db(location: str, passwd: str, master: str, db: DB_TYPE) -> No
     h.update(location.encode())
 
     key = h.hexdigest()
-    encrypted_passwd = encrypt_passwd(passwd, master)
+    encrypted_passwd = encrypt_passwd(passwd, master, location)
 
     db[key] = encrypted_passwd
 
@@ -199,19 +199,18 @@ def get_passwd_from_db(location: str, master: str, db: DB_TYPE) -> str:
     h = HMAC.new(secret, digestmod=SHA256)
     h.update(location.encode())
 
-    if h.hexdigest() in db:
-        db_keys = list(db.keys())
-        try:
-            h.hexverify(db_keys[db_keys.index(h.hexdigest())])
-        except ValueError:
-            print('Location does not exist in the database')
-            exit()
-    else:
+    if h.hexdigest() not in db:
         print('Location does not exist in the database')
         exit()
 
-    encrypted = db[h.hexdigest()]
-    salt = encrypted[0][0:16]
+    encrypted = ''
+    try:
+        encrypted = db[h.hexdigest()]
+    except KeyError:
+        print('Location does not exist in the database')
+        exit()
+
+    salt = str(encrypted[0][0:16]) + location
 
     return decrypt_passwd(encrypted, salt, master)
 
@@ -221,13 +220,17 @@ def main():
     check_arg_conflict(args)
 
     if args.init:
-        init_database(args.master)
-        print('Password manager initialized')
-        return
+        if not os.path.isfile('a'):
+            init_database(args.master)
+            print('Password manager initialized')
+            return
+        else:
+            print("Database is already initialized")
+            exit()
 
     if not os.path.isfile('a'):
         print("Database was not initialized")
-        exit(0)
+        exit()
 
     db = read_db_from_disc()
 
