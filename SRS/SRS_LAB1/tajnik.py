@@ -7,7 +7,6 @@ from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
 from typing import Dict, Tuple
 
-
 DB_TYPE = Dict[str, Tuple[bytes, bytes, bytes]]
 ENCRYPTED_PASSWD = Tuple[bytes, bytes, bytes]
 
@@ -65,11 +64,12 @@ def check_arg_conflict(args: argparse.Namespace) -> None:
 
     if args.put and not (args.location and args.passwd):
         raise argparse.ArgumentError(argument=None,
-                                     message='When -p/--put is set both '
+                                     message='When -p/--put is set -m/--master, '
                                              '-l/--location and -pass/--passwd have to be given')
 
     if args.get and not args.location:
-        raise argparse.ArgumentError(argument=None, message='When -g/--get is set -l/--location has to be given')
+        raise argparse.ArgumentError(argument=None,
+                                     message='When -g/--get is set -m/--master and -l/--location have to be given')
 
 
 def write_db_to_disc(db: DB_TYPE) -> None:
@@ -101,7 +101,7 @@ def init_database(master: str) -> None:
     h = HMAC.new(secret, digestmod=SHA256)
     h.update(master.encode())
 
-    db = {h.hexdigest(): encrypt_passwd('R^a$NL3W?FX*X&SP', 'www.www.www', master)}
+    db = {h.hexdigest(): encrypt_passwd('R^a$NL3W?FX*X&SP', master)}
 
     write_db_to_disc(db)
 
@@ -128,16 +128,15 @@ def check_master_password(master: str, db: DB_TYPE) -> bool:
     return False
 
 
-def encrypt_passwd(passwd: str, location: str, master: str) -> ENCRYPTED_PASSWD:
+def encrypt_passwd(passwd: str, master: str) -> ENCRYPTED_PASSWD:
     """
     Function that encrypts the password with integrity in mind
     :param passwd: Password to encrypt
-    :param location: Location with which th password is associated
     :param master: Master password
     :return:
     """
     salt = get_random_bytes(16)
-    key = scrypt(master, str(salt), 32, N=2**14, r=8, p=2)
+    key = scrypt(master, salt, 32, N=2 ** 14, r=8, p=2)
     cipher = AES.new(key, AES.MODE_EAX)
     nonce = cipher.nonce
 
@@ -146,15 +145,15 @@ def encrypt_passwd(passwd: str, location: str, master: str) -> ENCRYPTED_PASSWD:
     return salt + cipher_text, tag, nonce
 
 
-def decrypt_passwd(encrypted_passwd: ENCRYPTED_PASSWD, location: str, master: str) -> str:
+def decrypt_passwd(encrypted_passwd: ENCRYPTED_PASSWD, salt: bytes, master: str) -> str:
     """
     Function that decrypts a password for the given location
     :param encrypted_passwd:
-    :param location: Location with which th password is associated
+    :param salt: Location with which th password is associated
     :param master: Master password
     :return:
     """
-    key = scrypt(master, location, 32, N=2**14, r=8, p=2)
+    key = scrypt(master, salt.decode('unicode_escape'), 32, N=2 ** 14, r=8, p=2)
     cipher = AES.new(key, AES.MODE_EAX, nonce=encrypted_passwd[2])
 
     try:
@@ -175,12 +174,12 @@ def put_passwd_in_db(location: str, passwd: str, master: str, db: DB_TYPE) -> No
     :return:
     """
     salt = 'cPf$BPaXx#+!NT24'
-    secret = scrypt(location, salt, 16, N=2**10, r=8, p=1)
+    secret = scrypt(location, salt, 16, N=2 ** 10, r=8, p=1)
     h = HMAC.new(secret, digestmod=SHA256)
     h.update(location.encode())
 
     key = h.hexdigest()
-    encrypted_passwd = encrypt_passwd(passwd, location, master)
+    encrypted_passwd = encrypt_passwd(passwd, master)
 
     db[key] = encrypted_passwd
 
@@ -202,7 +201,11 @@ def get_passwd_from_db(location: str, master: str, db: DB_TYPE) -> str:
 
     if h.hexdigest() in db:
         db_keys = list(db.keys())
-        h.hexverify(db_keys[db_keys.index(h.hexdigest())])
+        try:
+            h.hexverify(db_keys[db_keys.index(h.hexdigest())])
+        except ValueError:
+            print('Location does not exist in the database')
+            exit()
     else:
         print('Location does not exist in the database')
         exit()
@@ -210,7 +213,7 @@ def get_passwd_from_db(location: str, master: str, db: DB_TYPE) -> str:
     encrypted = db[h.hexdigest()]
     salt = encrypted[0][0:16]
 
-    return decrypt_passwd(db[h.hexdigest()], str(salt), master)
+    return decrypt_passwd(encrypted, salt, master)
 
 
 def main():
