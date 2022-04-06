@@ -300,24 +300,95 @@ def resolver2(clauses: CLAUSES):
         return False
 
 
+def clause_pair_generator(clauses: CLAUSES) -> Generator:
+    sent_pairs = []
+
+    for i in clauses:
+        for j in clauses:
+            if i != j:
+                sent = list(i + j)
+                sent.sort()
+                sent = tuple(sent)
+
+                if sent not in sent_pairs:
+                    sent_pairs.append(sent)
+                    yield i, j
+
+
+def merge2(c1: CLAUSE, c2: CLAUSES, left_on: str) -> CLAUSE:
+    if left_on not in c1 or conjugate(left_on) not in c2:
+        raise ValueError('Cannot merge on the given key')
+
+    c1_tmp = list(c1)
+    c2_tmp = list(c2)
+
+    c1_tmp.remove(left_on)
+    c2_tmp.remove(conjugate(left_on))
+
+    return remove_duplicates_in_clause(tuple(c1_tmp + c2_tmp))
+
+
+def resolve_all(c1: CLAUSE, c2: CLAUSES) -> CLAUSES:
+    to_return = []
+
+    for i in c1:
+        if conjugate(i) in c2:
+            to_return.append(merge2(c1, c2, i))
+
+    return to_return
+
+
+def resolver3(clauses: CLAUSES) -> bool:
+    clauses_work = clauses.copy()
+
+    clauses_sets = [[]]
+    to_print = [[]]
+
+    while True:
+        new = []
+        for c1, c2 in clause_pair_generator(clauses_work.copy()):
+            resolvents = resolve_all(c1, c2)
+
+            to_remove = []
+
+            for i in resolvents:
+                i = remove_duplicates_in_clause(i)
+                if has_opposite(i):
+                    to_remove.append(i)
+
+            for i in to_remove:
+                resolvents.remove(i)
+
+            if resolvents:
+                if c2 in clauses_work:
+                    clauses_work.remove(c2)
+
+            if any(not i for i in resolvents):
+                return True
+
+            for i in resolvents:
+                put_in_set(new, i)
+
+        if all(i in clauses_work for i in new):
+            return False
+
+        for i in new:
+            put_in_set(clauses_work, i)
+
+
 def main():
     args = parse_args()
 
     if args.operation == 'resolution':
         a = load_file(args.clause_path)
         target = a[-1]
-        targets = negate_clause(tuple(target.split(' v ')))
         clauses = remove_redundant(proces_clauses(a))
 
-        for clause in clauses:
-            print(' v '.join(clause))
+        print('\n'.join(a))
 
         print('----------------------')
 
-        """for i in targets:
-            clauses.remove(i)"""
-
-        print(f"[CONCLUSION]: {target} {'is true' if resolver2(clauses) else 'is unknown'}")
+        print(f"[CONCLUSION]: {target} {'is true' if resolver3(clauses) else 'is unknown'}")
 
     if args.operation == 'cooking':
         clauses = load_file(args.clause_path)
@@ -328,7 +399,7 @@ def main():
             if ui.endswith('?'):
                 b = clauses + [ui[:-2]]
                 b = remove_redundant(proces_clauses(b))
-                print(f"[CONCLUSION]: {ui[:-2]} {'is true' if resolver2(b) else 'is unknown'}")
+                print(f"[CONCLUSION]: {ui[:-2]} {'is true' if resolver3(b) else 'is unknown'}")
 
             if ui.endswith('-'):
                 if ui[:-2] in clauses:
