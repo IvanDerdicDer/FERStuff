@@ -1,9 +1,33 @@
 import argparse
-from typing import List, Tuple, Generator
-from collections import deque
+from typing import List, Tuple, Generator, Any
+from dataclasses import dataclass
 
 CLAUSE = Tuple
-CLAUSES = List[CLAUSE]
+
+
+@dataclass
+class Clause:
+    clause: CLAUSE
+    parent1: Any = None
+    parent2: Any = None
+
+    def __contains__(self, item):
+        return item in self.clause
+
+    def __iter__(self):
+        return self.clause.__iter__()
+
+    def __len__(self):
+        return len(self.clause)
+
+    def __add__(self, other):
+        return Clause(self.clause + other.clause)
+
+    def __eq__(self, other):
+        return self.clause == other.clause
+
+
+CLAUSES = List[Clause]
 
 
 def parse_args() -> argparse.Namespace:
@@ -42,33 +66,19 @@ def conjugate(a: str):
     return a
 
 
-def round_robin_clause(start_index: int, clauses: CLAUSES) -> Generator:
-    if start_index not in range(len(clauses)):
-        raise IndexError('Index out of range')
-
-    starting_clause = clauses[start_index]
-
-    yield clauses[start_index]
-    start_index = (start_index + 1) % len(clauses)
-
-    while starting_clause != clauses[start_index]:
-        yield clauses[start_index]
-        start_index = (start_index + 1) % len(clauses)
-
-
-def negate_clause(clause: CLAUSE) -> CLAUSES:
-    to_return = [(conjugate(i), ) for i in clause]
+def negate_clause(clause: Clause) -> CLAUSES:
+    to_return = [Clause((conjugate(i),), clause.parent1, clause.parent2) for i in clause]
 
     return to_return
 
 
-def remove_duplicates_in_clause(clause: CLAUSE) -> CLAUSE:
+def remove_duplicates_in_clause(clause: Clause) -> Clause:
     to_return = []
     for c in clause:
         if c not in to_return:
             to_return.append(c)
 
-    return tuple(to_return)
+    return Clause(tuple(to_return), clause.parent1, clause.parent2)
 
 
 def remove_duplicates_in_clause_list(clause: CLAUSES) -> CLAUSES:
@@ -80,28 +90,71 @@ def remove_duplicates_in_clause_list(clause: CLAUSES) -> CLAUSES:
     return to_return
 
 
-def proces_clauses(clauses_raw: List[str]) -> CLAUSES:
-    clauses_work: CLAUSES = [remove_duplicates_in_clause(tuple(i.split(' v '))) for i in clauses_raw]
+def remove_redundant_in_clauses_list(clauses: CLAUSES) -> CLAUSES:
+    to_return = clauses.copy()
 
-    to_process = clauses_work.pop()
+    for clause in clauses:
+        to_remove = []
+        if is_sub_clause_in_set(to_return, clause):
+            to_remove.append(clause)
 
-    to_return = clauses_work + negate_clause(to_process)
+        for c in to_remove:
+            if c in to_return:
+                to_return.remove(c)
 
     return to_return
 
 
-def remove_redundant(clauses: CLAUSES) -> CLAUSES:
-    to_return: CLAUSES = clauses.copy()
-    redundant: CLAUSES = []
+def remove_redundant_between(new: CLAUSES, clauses: CLAUSES) -> Tuple[CLAUSES, CLAUSES]:
+    to_return_new = new.copy()
+    to_return_clauses = clauses.copy()
 
-    for i in clauses:
-        for j in clauses:
-            if len(j) < len(i) and all(k in i for k in j):
-                if i not in redundant:
-                    redundant.append(i)
+    to_remove_new = []
+    to_remove_clauses = []
 
-    for i in redundant:
-        to_return.remove(i)
+    for n in new:
+        if is_sub_clause_in_set(clauses, n):
+            to_remove_new.append(n)
+
+    for c in clauses:
+        if is_sub_clause_in_set(new, c):
+            to_remove_clauses.append(c)
+
+    for n in to_remove_new:
+        if n in to_return_new:
+            to_return_new.remove(n)
+
+    for c in to_remove_clauses:
+        if c in to_return_clauses:
+            to_return_clauses.remove(c)
+
+    return to_return_new, to_return_clauses
+
+
+def remove_parents_in_clauses_list(clauses: CLAUSES) -> CLAUSES:
+    to_return = clauses.copy()
+    to_remove = []
+
+    for clause in clauses:
+        if clause.parent1:
+            to_remove.append(clause.parent1)
+
+        if clause.parent2:
+            to_remove.append(clause.parent2)
+
+    for clause in to_remove:
+        if clause in to_return:
+            to_return.remove(clause)
+
+    return to_return
+
+
+def proces_clauses(clauses_raw: List[str]) -> CLAUSES:
+    clauses_work: CLAUSES = [remove_duplicates_in_clause(Clause(tuple(i.split(' v ')))) for i in clauses_raw]
+
+    to_process = clauses_work.pop()
+
+    to_return = clauses_work + negate_clause(to_process)
 
     return to_return
 
@@ -116,188 +169,26 @@ def are_opposite(a: str, b: str) -> bool:
     return False
 
 
-def merge(a: CLAUSE, b: CLAUSE) -> CLAUSE:
-    a_work = list(a)
-    b_work = list(b)
-
-    for i in a_work:
-        for j in b_work:
-            if are_opposite(i, j):
-                a_work.remove(i)
-                b_work.remove(j)
-                return tuple(a_work + b_work)
-
-    return tuple()
-
-
-def has_opposite(clause: CLAUSE) -> bool:
-    for i in clause:
-        for j in clause:
+def has_opposite(clause: Clause) -> bool:
+    for i in clause.clause:
+        for j in clause.clause:
             if conjugate(i) == j:
                 return True
 
     return False
 
 
-def is_sub_clause_in_set(set: List[CLAUSE], clause: CLAUSE) -> bool:
-    for c in set:
-        if all(i in clause for i in c):
+def is_sub_clause_in_set(set1: CLAUSES, clause: Clause) -> bool:
+    for c in set1:
+        if all(i in clause for i in c) and len(clause) > len(c):
             return True
 
     return False
 
 
-def put_in_set(set: List[CLAUSE], clause: CLAUSE) -> None:
-    if not is_sub_clause_in_set(set, clause):
-        set.append(clause)
-
-
-def resolver(clauses: CLAUSES, targets: CLAUSES) -> bool:
-    # for target in targets:
-    clauses_work = clauses.copy()
-
-    index = 0
-
-    clause_sets = [[]]
-
-    to_print = [[]]
-
-    last = remove_duplicates_in_clause(clauses[index])
-
-    clauses_work.remove(clauses[index])
-
-    previous_last = None
-
-    were_used = []
-
-    while last:
-        if previous_last == last or not clauses_work:
-            were_used = []
-            clause_sets.append([])
-            to_print.append([])
-            clauses_work += clauses.copy()
-            clauses_work = remove_duplicates_in_clause_list(list(tuple(i) for i in clauses_work))
-            index += 1
-            if index >= len(clauses):
-                print('\n'.join(to_print[-2]))
-                print('----------------------')
-                print(f'index {index}, clauses {len(clauses)}')
-                return False
-            last = clauses[index]
-            if last in clauses_work:
-                if last not in were_used:
-                    were_used.append(last)
-
-        previous_last = last
-
-        stack = deque()
-        for element in last:
-            for clause in round_robin_clause(index, clauses_work):
-                if clause not in were_used:
-                    if conjugate(element) in clause:
-                        stack.append(clause)
-                        break
-
-        while stack:
-            top = stack.popleft()
-            stack = deque()
-            tmp_last = remove_duplicates_in_clause(merge(last, top))
-            if top in clauses_work:
-                if top not in were_used:
-                    were_used.append(top)
-
-            if not has_opposite(tmp_last) and not is_sub_clause_in_set(clause_sets[-1], tmp_last):
-                put_in_set(clause_sets[-1], tmp_last)
-            else:
-                continue
-
-            if tmp_last == clause_sets[-1][-1]:
-                to_print[-1].append(f"{' v '.join(last)}, {' v '.join(top)} -> {' v '.join(clause_sets[-1][-1])}")
-
-            last = tmp_last
-
-        if not last:
-            print('\n'.join(to_print[-1]))
-            print('----------------------')
-            print(f'index {index}, clauses {len(clauses)}')
-            return True
-
-        print('\n'.join(to_print[-1]))
-        print('----------------------')
-        print(f'index {index}, clauses {len(clauses)}')
-    else:
-        print('\n'.join(to_print[-1]))
-        print('----------------------')
-        print(f'index {index}, clauses {len(clauses)}')
-        return False
-
-
-def resolver2(clauses: CLAUSES):
-    clauses_work = clauses.copy()
-    clauses_queue = deque(clauses)
-    clause_sets = [[]]
-    to_print = [[]]
-    previous = None
-
-    first = clauses_queue.popleft()
-    clauses_work.remove(first)
-
-    while first:
-        if previous == first:
-            clauses_work = clauses.copy()
-            clause_sets.append([])
-            to_print.append([])
-            if not clauses_queue:
-                print('\n'.join(to_print[-2]))
-                print('----------------------')
-                return False
-            first = clauses_queue.popleft()
-            clauses_work.remove(first)
-
-        for element in first:
-            to_break = False
-            for clause in reversed(clauses_work):
-                if conjugate(element) in clause:
-                    to_break = True
-                    tmp_first = remove_duplicates_in_clause(merge(first, clause))
-
-                    clauses_work.remove(clause)
-
-                    if has_opposite(tmp_first):
-                        continue
-
-                    put_in_set(clause_sets[-1], tmp_first)
-
-                    if tmp_first == clause_sets[-1][-1]:
-                        to_print[-1].append(
-                            f"{' v '.join(first)}, {' v '.join(clause)} -> {' v '.join(clause_sets[-1][-1])}")
-
-                    previous = tuple(first)
-                    first = tuple(tmp_first)
-
-                    if not first:
-                        print('\n'.join(to_print[-1]))
-                        print('----------------------')
-                        return True
-
-                    break
-            if to_break:
-                break
-        else:
-            clauses_work = clauses.copy()
-            clause_sets.append([])
-            to_print.append([])
-            if not clauses_queue:
-                print('\n'.join(to_print[-2]))
-                print('----------------------')
-                return False
-            first = clauses_queue.popleft()
-            clauses_work.remove(first)
-
-    else:
-        print('\n'.join(to_print[-1]))
-        print('----------------------')
-        return False
+def put_in_set(set1: CLAUSES, clause: Clause) -> None:
+    if not is_sub_clause_in_set(set1, clause):
+        set1.append(clause)
 
 
 def clause_pair_generator(clauses: CLAUSES) -> Generator:
@@ -315,7 +206,7 @@ def clause_pair_generator(clauses: CLAUSES) -> Generator:
                     yield i, j
 
 
-def merge2(c1: CLAUSE, c2: CLAUSES, left_on: str) -> CLAUSE:
+def merge2(c1: Clause, c2: Clause, left_on: str) -> Clause:
     if left_on not in c1 or conjugate(left_on) not in c2:
         raise ValueError('Cannot merge on the given key')
 
@@ -325,10 +216,10 @@ def merge2(c1: CLAUSE, c2: CLAUSES, left_on: str) -> CLAUSE:
     c1_tmp.remove(left_on)
     c2_tmp.remove(conjugate(left_on))
 
-    return remove_duplicates_in_clause(tuple(c1_tmp + c2_tmp))
+    return remove_duplicates_in_clause(Clause(tuple(c1_tmp + c2_tmp), c1, c2))
 
 
-def resolve_all(c1: CLAUSE, c2: CLAUSES) -> CLAUSES:
+def resolve_all(c1: Clause, c2: Clause) -> CLAUSES:
     to_return = []
 
     for i in c1:
@@ -338,42 +229,69 @@ def resolve_all(c1: CLAUSE, c2: CLAUSES) -> CLAUSES:
     return to_return
 
 
-def resolver3(clauses: CLAUSES) -> bool:
+def print_solution(solution_clause: Clause):
+    stack = [solution_clause]
+    stack2 = []
+
+    while stack:
+        top = stack.pop()
+
+        if not top.parent1 and not top.parent2:
+            continue
+
+        stack2.append(f"{' v '.join(top.parent1)}, {' v '.join(top.parent2)} -> {' v '.join(top)}")
+
+        if top.parent1:
+            stack.append(top.parent1)
+
+        if top.parent2:
+            stack.append(top.parent2)
+
+    while stack2:
+        print(stack2.pop())
+
+    print('----------------------')
+
+
+def resolver4(clauses: CLAUSES) -> bool:
     clauses_work = clauses.copy()
 
-    clauses_sets = [[]]
-    to_print = [[]]
+    new = []
 
     while True:
-        new = []
+
         for c1, c2 in clause_pair_generator(clauses_work.copy()):
             resolvents = resolve_all(c1, c2)
 
-            to_remove = []
-
-            for i in resolvents:
-                i = remove_duplicates_in_clause(i)
-                if has_opposite(i):
-                    to_remove.append(i)
-
-            for i in to_remove:
-                resolvents.remove(i)
-
-            if resolvents:
-                if c2 in clauses_work:
-                    clauses_work.remove(c2)
+            resolvents = [remove_duplicates_in_clause(i) for i in resolvents if not has_opposite(i)]
 
             if any(not i for i in resolvents):
+                for i in resolvents:
+                    if not i:
+                        print_solution(i)
+
                 return True
 
             for i in resolvents:
                 put_in_set(new, i)
 
         if all(i in clauses_work for i in new):
+            print_solution(clauses_work[-1])
             return False
+
+        new = remove_redundant_in_clauses_list(new)
+        new = remove_duplicates_in_clause_list(new)
 
         for i in new:
             put_in_set(clauses_work, i)
+
+        clauses_work = remove_redundant_in_clauses_list(clauses_work)
+        clauses_work = remove_duplicates_in_clause_list(clauses_work)
+
+        new, clauses_work = remove_redundant_between(new, clauses_work)
+
+        """if len(clauses_work) > 25:
+            breakpoint()"""
 
 
 def main():
@@ -382,13 +300,13 @@ def main():
     if args.operation == 'resolution':
         a = load_file(args.clause_path)
         target = a[-1]
-        clauses = remove_redundant(proces_clauses(a))
+        clauses = proces_clauses(a)
 
-        print('\n'.join(a))
+        print('\n'.join(' v '.join(i) for i in clauses))
 
         print('----------------------')
 
-        print(f"[CONCLUSION]: {target} {'is true' if resolver3(clauses) else 'is unknown'}")
+        print(f"[CONCLUSION]: {target} {'is true' if resolver4(clauses) else 'is unknown'}")
 
     if args.operation == 'cooking':
         clauses = load_file(args.clause_path)
@@ -398,8 +316,8 @@ def main():
             print(f'User command: {ui}')
             if ui.endswith('?'):
                 b = clauses + [ui[:-2]]
-                b = remove_redundant(proces_clauses(b))
-                print(f"[CONCLUSION]: {ui[:-2]} {'is true' if resolver3(b) else 'is unknown'}")
+                b = proces_clauses(b)
+                print(f"[CONCLUSION]: {ui[:-2]} {'is true' if resolver4(b) else 'is unknown'}")
 
             if ui.endswith('-'):
                 if ui[:-2] in clauses:
