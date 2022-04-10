@@ -1,6 +1,7 @@
 import argparse
 from typing import List, Tuple, Generator, Any
 from dataclasses import dataclass
+from itertools import combinations
 
 CLAUSE = Tuple
 
@@ -191,21 +192,6 @@ def put_in_set(set1: CLAUSES, clause: Clause) -> None:
         set1.append(clause)
 
 
-def clause_pair_generator(clauses: CLAUSES) -> Generator:
-    sent_pairs = []
-
-    for i in clauses:
-        for j in clauses:
-            if i != j:
-                sent = list(i + j)
-                sent.sort()
-                sent = tuple(sent)
-
-                if sent not in sent_pairs:
-                    sent_pairs.append(sent)
-                    yield i, j
-
-
 def merge2(c1: Clause, c2: Clause, left_on: str) -> Clause:
     if left_on not in c1 or conjugate(left_on) not in c2:
         raise ValueError('Cannot merge on the given key')
@@ -260,7 +246,7 @@ def resolver4(clauses: CLAUSES) -> bool:
 
     while True:
 
-        for c1, c2 in clause_pair_generator(clauses_work.copy()):
+        for c1, c2 in combinations(clauses_work.copy(), 2):
             resolvents = resolve_all(c1, c2)
 
             resolvents = [remove_duplicates_in_clause(i) for i in resolvents if not has_opposite(i)]
@@ -289,9 +275,6 @@ def resolver4(clauses: CLAUSES) -> bool:
         clauses_work = remove_duplicates_in_clause_list(clauses_work)
 
         new, clauses_work = remove_redundant_between(new, clauses_work)
-
-        """if len(clauses_work) > 25:
-            breakpoint()"""
 
 
 def main():
