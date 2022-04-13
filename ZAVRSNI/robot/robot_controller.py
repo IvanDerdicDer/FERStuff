@@ -7,8 +7,8 @@ BUFFER_SIZE = 8
 DESTINATION = tuple[str, int]
 
 
-class AllowedDevices(Enum):
-    ROBOT1 = 21
+class Slaves(Enum):
+    SLAVE1 = int(21).to_bytes(1, 'big', signed=False)
 
 
 class PacketType(Enum):
@@ -17,6 +17,9 @@ class PacketType(Enum):
     SET_WHEEL_SPEED_AND_DIRECTION = int(3).to_bytes(1, 'big', signed=False)
     RESPONSE_CALIBRATED_WHEEL_SPEEDS = int(4).to_bytes(1, 'big', signed=False)
     RESPONSE_LINE_POSITION = int(5).to_bytes(1, 'big', signed=False)
+    GET_STATUS = int(6).to_bytes(1, 'big', signed=False)
+    RESPONSE_RUNNING = int(7).to_bytes(1, 'big', signed=False)
+    RESPONSE_STOPPED = int(8).to_bytes(1, 'big', signed=False)
 
 
 @dataclass(frozen=True)
@@ -47,36 +50,46 @@ def send_packet(packet: bytes, destination: DESTINATION) -> None:
         s.sendto(packet, destination)
 
 
-def receive_packet(buffer_size) -> ReceivedPacket:
+def is_packet_type_valid(packet_type: int) -> bool:
+    try:
+        PacketType(packet_type)
+        return True
+    except ValueError:
+        return False
+
+
+def receive_packet(buffer_size) -> Optional[ReceivedPacket]:
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
         packet = s.recvfrom(buffer_size)[0]
+
+        if not is_packet_type_valid(packet[0]):
+            return None
 
         return ReceivedPacket(PacketType(packet[0]), packet[1], packet[2:])
 
 
 def is_device_id_valid(device_id: int) -> bool:
     try:
-        AllowedDevices(device_id)
+        Slaves(device_id)
         return True
     except ValueError:
         return False
 
 
 def get_response(
+        packet_type: PacketType,
         device_id: bytes,
+        value: bytes,
         destination: DESTINATION,
         buffer_size: Optional[int] = BUFFER_SIZE
 ) -> Optional[ReceivedPacket]:
-    packet = packet_builder(PacketType.GET_CALIBRATED_SPEEDS, device_id)
+    packet = packet_builder(packet_type.value, device_id, value)
 
     send_packet(packet, destination)
 
     response = receive_packet(buffer_size)
 
-    if any((
-            not is_device_id_valid(response.device_id),
-            response.packed_type != PacketType.RESPONSE_CALIBRATED_WHEEL_SPEEDS
-    )):
+    if not is_device_id_valid(response.device_id):
         return None
 
     return response
@@ -87,7 +100,7 @@ def get_calibrated_speeds(
         destination: DESTINATION,
         buffer_size: Optional[int] = BUFFER_SIZE
 ) -> Optional[WheelsSpeeds]:
-    response = get_response(device_id, destination, buffer_size)
+    response = get_response(PacketType.GET_CALIBRATED_SPEEDS, device_id, b'', destination, buffer_size)
 
     if not response or response.packed_type != PacketType.GET_CALIBRATED_SPEEDS:
         return None
@@ -95,12 +108,12 @@ def get_calibrated_speeds(
     return WheelsSpeeds(*response.value)
 
 
-def get_line_location(
+def get_line_position(
         device_id: bytes,
         destination: DESTINATION,
         buffer_size: Optional[int] = BUFFER_SIZE
 ) -> Optional[int]:
-    response = get_response(device_id, destination, buffer_size)
+    response = get_response(PacketType.RESPONSE_LINE_POSITION, device_id, b'', destination, buffer_size)
 
     if not response or response.packed_type != PacketType.RESPONSE_LINE_POSITION:
         return None
@@ -123,3 +136,20 @@ def set_wheel_speed(
     )
 
     send_packet(packet, destination)
+
+
+def get_slave_status(
+        device_id: bytes,
+        destination: DESTINATION,
+        buffer_size: int = BUFFER_SIZE
+) -> Optional[bool]:
+    response = get_response(PacketType.GET_STATUS, device_id, b'', destination, buffer_size)
+
+    if not response:
+        return None
+
+    if response.packed_type == PacketType.RESPONSE_RUNNING:
+        return True
+
+    if response.packed_type == PacketType.RESPONSE_STOPPED:
+        return False
