@@ -1,10 +1,11 @@
-from Crypto.Hash import HMAC, SHA256
-from Crypto.Random import get_random_bytes
 import argparse
+import os
 import pickle
 from dataclasses import dataclass
-import os
 from getpass import getpass
+from Crypto.Hash import SHA256
+from Crypto.Protocol.KDF import scrypt
+from Crypto.Random import get_random_bytes
 
 
 @dataclass
@@ -41,12 +42,9 @@ def login(username: str, passwd: str, db: DATABASE) -> bool:
 
     hashed_passwd: HashedPasswd = db[key]
 
-    hasher = HMAC.new(hashed_passwd.secret, digestmod=SHA256)
-    hasher.update(passwd.encode())
+    login_hashed_passwd = scrypt(passwd, hashed_passwd.secret.decode('unicode-escape'), 32, 2 ** 14, 8, 2)
 
-    try:
-        hasher.verify(hashed_passwd.hashed_passwd)
-    except ValueError:
+    if login_hashed_passwd != hashed_passwd.hashed_passwd:
         print('Incorrect username or password')
         return False
 
@@ -78,10 +76,7 @@ def change_passwd(username: str, new_passwd: str, db: DATABASE) -> bool:
 
     secret = get_random_bytes(16) + key
 
-    hasher = HMAC.new(secret, digestmod=SHA256)
-    hasher.update(new_passwd.encode())
-
-    hashed_passwd = hasher.digest()
+    hashed_passwd = scrypt(new_passwd, secret.decode('unicode-escape'), 32, 2 ** 14, 8, 2)
     hashed_passwd = HashedPasswd(secret, hashed_passwd)
 
     db[key] = hashed_passwd

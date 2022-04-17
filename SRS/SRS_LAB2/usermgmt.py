@@ -1,10 +1,11 @@
-from Crypto.Hash import HMAC, SHA256
-from Crypto.Random import get_random_bytes
 import argparse
+import os
 import pickle
 from dataclasses import dataclass
-import os
 from getpass import getpass
+from Crypto.Hash import SHA256
+from Crypto.Protocol.KDF import scrypt
+from Crypto.Random import get_random_bytes
 
 
 @dataclass
@@ -65,11 +66,7 @@ def add_user(username: str, passwd: str, db: DATABASE) -> None:
 
     secret = get_random_bytes(16) + key
 
-    hasher = HMAC.new(secret, digestmod=SHA256)
-
-    hasher.update(passwd.encode())
-
-    hashed_passwd = hasher.digest()
+    hashed_passwd = scrypt(passwd, secret.decode('unicode-escape'), 32, 2 ** 14, 8, 2)
 
     hashed_passwd = HashedPasswd(secret, hashed_passwd)
 
@@ -86,10 +83,7 @@ def change_passwd(username: str, new_passwd: str, db: DATABASE) -> None:
 
     secret = get_random_bytes(16) + key
 
-    hasher = HMAC.new(secret, digestmod=SHA256)
-    hasher.update(new_passwd.encode())
-
-    hashed_passwd = hasher.digest()
+    hashed_passwd = scrypt(new_passwd, secret.decode('unicode-escape'), 32, 2 ** 14, 8, 2)
     hashed_passwd = HashedPasswd(secret, hashed_passwd)
 
     if key not in db:
