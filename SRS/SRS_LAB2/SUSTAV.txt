@@ -1,0 +1,22 @@
+Off-line pogađanje
+
+Lozinke su pohranjene kao hashevi. Hashiraju se pomoću scrypt algoritme gdje se kao secret korisit nasumični salt plus
+hash korisničkog imena kao peper. Ovime se osigurava da se ne mogu koristiti rainbow tablice te da zamjena lozinaka
+između korisnika nije moguće. Također napadač je dodano ograničen tako da nakon 3 neuspjela pokušaja potrebno je opet
+pokrenuti program za prijavu.
+
+Kompleksnost lozinke
+
+Prilikom kreiranja korisnika i promjene lozinke, bilo od strane korisnika ili administratora, provjerava se da svaka
+lozinka sadrži bazem jedno veliko i malo slovo, broj i specijalni znak, te da je minimalne duljine 8 znakova.
+Implementirano pošto je jednostavan način povečanja sigurnosti lozinke.
+
+On-line pogađanje
+
+Sustav sprječavanja online-pogađanja nije potrebno implementirati pošto je sustav offline.
+
+Periodička promjena lozinaka
+
+Nije implementirana eksplicitno, ali ju administrator može sam implementirati tako da napiše skriptu koja periodički
+za sve korisnike postavlja force password change zastavicu na true.
+

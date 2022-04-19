@@ -31,6 +31,16 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def check_passwd_secure(passwd: str) -> bool:
+    return not any((
+        passwd == passwd.lower(),
+        passwd == passwd.upper(),
+        not ''.join(i for i in passwd if i.isnumeric()),
+        not ''.join(i for i in passwd if not i.isalnum()),
+        len(passwd) < 8
+    ))
+
+
 def login(username: str, passwd: str, db: DATABASE) -> bool:
     hasher = SHA256.new()
     hasher.update(username.encode())
@@ -66,6 +76,11 @@ def login(username: str, passwd: str, db: DATABASE) -> bool:
 
 
 def change_passwd(username: str, new_passwd: str, db: DATABASE) -> bool:
+    if not check_passwd_secure(new_passwd):
+        print('Password needs to contain at least one upper case letter, lowercase letter, number, and special symbol '
+              'and needs to be at least 8 characters long')
+        exit(1)
+
     hasher = SHA256.new()
     hasher.update(username.encode())
     key = hasher.digest()
