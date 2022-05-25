@@ -65,7 +65,7 @@ def main():
     students, labs = load_files(args.folder_path)
 
     grades = DataFrame()
-    grades.header = ['JMBAG', 'Ime', 'Prezime', 'L1', 'L2', 'L3']
+    grades.header = ['JMBAG', 'Prezime', 'Ime', 'L1', 'L2', 'L3']
     grades.data = {i: [] for i in grades.header}
 
     for student in students:
