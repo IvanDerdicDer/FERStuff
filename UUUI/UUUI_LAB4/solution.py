@@ -1,3 +1,5 @@
+import argparse
+
 import numpy as np
 from dataclasses import dataclass, field
 from typing import Optional, Union, List, Dict, Tuple, Any
@@ -8,6 +10,22 @@ import random
 NP_ARRAY = np.ndarray
 DATASET = Dict[str, List[str]]
 LAYER_PARAMETERS = List[Tuple[Tuple[int, int], Dict[str, Any]]]
+
+
+def parse_args() -> argparse.Namespace:
+    p = argparse.ArgumentParser()
+
+    p.add_argument('--train', type=str)
+    p.add_argument('--test', type=str)
+    p.add_argument('--nn', type=str)
+    p.add_argument('--popsize', type=int)
+    p.add_argument('--elitism', type=int)
+    p.add_argument('--p', type=float)
+    p.add_argument('--K', type=float)
+    p.add_argument('--iter', type=int)
+
+    # return p.parse_args(['--train', '--test', '--nn', '--popsize', '--elitism', '--p', '--K', '--iter'])
+    return p.parse_args()
 
 
 @dataclass(frozen=True)
@@ -62,7 +80,7 @@ def csv_parser(filepath: str) -> Dataset:
 class Sigmoid:
     @staticmethod
     def apply(x: NP_ARRAY) -> NP_ARRAY:
-        return 1 / (1 + np.exp(x))
+        return 1 / (1 + np.exp(-x))
 
 
 class RElU:
@@ -94,11 +112,9 @@ class Layer:
             self.set_as_output()
 
         if all((self.weight is None, self.bias is None)):
-            self.weight = np.array(
-                [[np.random.normal(scale=0.01) for _ in range(self.input_size)] for _ in range(self.number_of_nodes)]
-            )
+            self.weight = np.random.normal(scale=0.01, size=(self.number_of_nodes, self.input_size))
 
-            self.bias = np.array([np.random.normal(scale=0.01) for _ in range(self.number_of_nodes)])
+            self.bias = np.random.normal(scale=0.01, size=self.number_of_nodes)
 
     def run(self, layer_input: NP_ARRAY) -> NP_ARRAY:
         return self.output_function.apply(np.matmul(self.weight, layer_input) + self.bias)
@@ -109,19 +125,9 @@ class Layer:
         self._is_output = True
 
     def mutate(self, std_dev: float, mutation_probability: float):
-        self.weight *= np.array(
-            [
-                [
-                    1 - (np.random.normal(scale=std_dev) * mutation_probability) for _ in
-                    np.arange(self.input_size)
-                ] for _ in np.arange(self.number_of_nodes)
-            ]
-        )
+        self.weight += np.random.normal(scale=std_dev, size=(self.number_of_nodes, self.input_size)) * (np.random.random() < mutation_probability)
 
-        self.bias += [
-            1 - (np.random.normal(scale=std_dev) * mutation_probability) for _ in
-            np.arange(self.number_of_nodes)
-        ]
+        self.bias += np.random.normal(scale=std_dev, size=self.number_of_nodes) * (np.random.random() < mutation_probability)
 
         return self
 
@@ -143,9 +149,11 @@ class NeuralNetwork:
 
         return tmp_result[0]
 
-    def mutate(self, std_dev: float, mutation_probability: float) -> None:
+    def mutate(self, std_dev: float, mutation_probability: float):
         for layer in self.layers:
             layer.mutate(std_dev, mutation_probability)
+
+        return self
 
     def __copy__(self):
         return NeuralNetwork(self.layers)
@@ -194,7 +202,7 @@ def breed(network1: NeuralNetwork, network2: NeuralNetwork) -> GENERATION:
         new_weight = (l1.weight + l2.weight) / 2
         new_bias = (l1.bias + l2.bias) / 2
 
-        new_layers.append(Layer(l1.input_size, l1.number_of_nodes, weight=new_weight, bias=new_bias))
+        new_layers.append(Layer(l1.input_size, l1.number_of_nodes, l1.output_function, weight=new_weight, bias=new_bias))
 
     return [NeuralNetwork(new_layers.copy()), NeuralNetwork(new_layers.copy())]
 
@@ -217,8 +225,8 @@ def construct_new_generation(
     tmp_generation: GENERATION = []
 
     while len(tmp_generation) < len(generation):
-        tmp_generation += breed(*to_breed)
-        to_breed = random.sample(elites, 1) + random.sample(elites, 1)
+        tmp_generation += [i.mutate(std_dev, mutation_probability) for i in breed(*to_breed)]
+        to_breed = random.sample(elites, 1) + random.sample(tmp_generation, 1)
 
     if len(tmp_generation) > len(generation):
         tmp_generation = tmp_generation[:len(generation)]
@@ -253,21 +261,36 @@ def train(
 
 
 def main():
-    train_dataset = csv_parser('sine_train.txt')
-    test_dataset = csv_parser('sine_test.txt')
+    args = parse_args()
 
-    generation_size = 10
+    train_dataset = csv_parser(args.train)
+    test_dataset = csv_parser(args.test)
 
-    layer_parameters = [
-        ((1, 5), {'output_function': RElU}),
-        ((5, 5), {'output_function': RElU}),
-        ((5, 1), {'_is_output': True})
-    ]
+    generation_size = args.popsize
+
+    layer_parameters = []
+
+    if args.nn == '5s':
+        layer_parameters += [
+            ((len(train_dataset) - 1, 5), {'output_function': Sigmoid}),
+            ((5, 1), {'_is_output': True, 'output_function': NoFunc})
+        ]
+    elif args.nn == '5s5s':
+        layer_parameters += [
+            ((len(train_dataset) - 1, 5), {'output_function': Sigmoid}),
+            ((5, 5), {'output_function': Sigmoid}),
+            ((5, 1), {'_is_output': True, 'output_function': NoFunc})
+        ]
+    elif args.nn == '20s':
+        layer_parameters += [
+            ((len(train_dataset) - 1, 20), {'output_function': Sigmoid}),
+            ((20, 1), {'_is_output': True, 'output_function': NoFunc})
+        ]
 
     generation = [NeuralNetwork([Layer(*(i[0]), **(i[1])) for i in layer_parameters]) for _ in range(generation_size)]
     datasets = [train_dataset.copy() for _ in range(generation_size)]
 
-    result = train(generation, datasets, 10000, 2, 0.1, 0.1)
+    result = train(generation, datasets, args.iter, args.elitism, args.p, args.K)
 
     result = run_generation(result, [test_dataset.copy() for _ in range(generation_size)])
 
